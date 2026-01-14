@@ -202,11 +202,8 @@ export const useCTFStore = create<CTFStore>()(
       // Use sessionStorage instead of localStorage for API keys
       // This means keys are cleared when browser tab is closed (more secure)
       storage: createJSONStorage(() => sessionStorage),
-      
-      // Only persist certain fields (not connection status, etc.)
-      partials: true,
-      
-      // Specify which fields to persist
+
+      // Specify which fields to persist (not connection status, etc.)
       // Note: We intentionally persist API keys to sessionStorage
       // They're cleared when the tab closes
       partialize: (state) => ({
