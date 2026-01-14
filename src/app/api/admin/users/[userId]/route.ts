@@ -57,13 +57,14 @@ async function checkAdminPermission(requiredPermission: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
+  const { userId } = await params;
   const auth = await checkAdminPermission('users:view_details');
   if (!auth.authorized) return auth.error;
 
   try {
-    const user = await getUserById(params.userId);
+    const user = await getUserById(userId);
     
     if (!user) {
       return NextResponse.json(
@@ -88,8 +89,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
+  const { userId } = await params;
   const auth = await checkAdminPermission('users:edit');
   if (!auth.authorized) return auth.error;
 
@@ -98,7 +100,7 @@ export async function PATCH(
     const { action, reason, newRole, displayName, email } = body;
 
     // Get target user to check permissions
-    const targetUser = await getUserById(params.userId);
+    const targetUser = await getUserById(userId);
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -118,21 +120,21 @@ export async function PATCH(
         if (!hasPermission(auth.adminRole!, 'users:suspend')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await suspendUser(params.userId, reason || 'No reason provided', auth.adminId!);
+        result = await suspendUser(userId, reason || 'No reason provided', auth.adminId!);
         break;
 
       case 'unsuspend':
         if (!hasPermission(auth.adminRole!, 'users:unsuspend')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await unsuspendUser(params.userId);
+        result = await unsuspendUser(userId);
         break;
 
       case 'ban':
         if (!hasPermission(auth.adminRole!, 'users:ban')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await banUser(params.userId, reason || 'No reason provided', auth.adminId!);
+        result = await banUser(userId, reason || 'No reason provided', auth.adminId!);
         break;
 
       case 'change_role':
@@ -142,12 +144,12 @@ export async function PATCH(
         if (!newRole) {
           return NextResponse.json({ error: "newRole required" }, { status: 400 });
         }
-        result = await changeUserRole(params.userId, newRole, auth.adminId!);
+        result = await changeUserRole(userId, newRole, auth.adminId!);
         break;
 
       case 'update':
         // General update (displayName, email)
-        result = await updateUser(params.userId, { displayName, email });
+        result = await updateUser(userId, { displayName, email });
         break;
 
       default:
@@ -183,14 +185,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
+  const { userId } = await params;
   const auth = await checkAdminPermission('users:delete');
   if (!auth.authorized) return auth.error;
 
   try {
     // Get target user to check permissions
-    const targetUser = await getUserById(params.userId);
+    const targetUser = await getUserById(userId);
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -203,7 +206,7 @@ export async function DELETE(
       );
     }
 
-    const result = await deleteUser(params.userId);
+    const result = await deleteUser(userId);
 
     if (!result.success) {
       return NextResponse.json(
