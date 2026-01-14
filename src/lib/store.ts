@@ -1,0 +1,319 @@
+// =============================================================================
+// Global State Store - LLM Security CTF Platform
+// =============================================================================
+// Zustand is a lightweight state management library. Think of it like a global
+// variable that all components can read from and write to, but with React
+// integration so components re-render when state changes.
+//
+// We store:
+// - LLM configuration (provider, API key, model)
+// - F5 Guardrails configuration
+// - Game progress (current level, score, attempts)
+// - UI state (dark mode, sidebar open, etc.)
+// =============================================================================
+
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { 
+  LLMConfig, 
+  GuardrailsConfig, 
+  UserProgress, 
+  Attempt,
+  CTF_LEVELS 
+} from '@/types';
+
+// -----------------------------------------------------------------------------
+// Store Interface
+// -----------------------------------------------------------------------------
+// This defines all the state and actions available in our store
+
+interface CTFStore {
+  // ----- LLM Configuration -----
+  llmConfig: LLMConfig;
+  setLLMConfig: (config: Partial<LLMConfig>) => void;
+  
+  // ----- F5 Guardrails Configuration -----
+  guardrailsConfig: GuardrailsConfig;
+  setGuardrailsConfig: (config: Partial<GuardrailsConfig>) => void;
+  
+  // ----- Game State -----
+  userProgress: UserProgress;
+  setCurrentLevel: (level: number) => void;
+  addAttempt: (attempt: Attempt) => void;
+  completeLevel: (levelId: number, points: number) => void;
+  resetProgress: () => void;
+  
+  // ----- UI State -----
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  isSettingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+  
+  // ----- Connection Status -----
+  llmConnectionStatus: 'untested' | 'testing' | 'connected' | 'error';
+  guardrailsConnectionStatus: 'untested' | 'testing' | 'connected' | 'error';
+  setLLMConnectionStatus: (status: 'untested' | 'testing' | 'connected' | 'error') => void;
+  setGuardrailsConnectionStatus: (status: 'untested' | 'testing' | 'connected' | 'error') => void;
+}
+
+// -----------------------------------------------------------------------------
+// Default Values
+// -----------------------------------------------------------------------------
+
+const defaultLLMConfig: LLMConfig = {
+  provider: 'anthropic',
+  apiKey: '',
+  model: 'claude-sonnet-4-20250514',
+  temperature: 0.7,
+  maxTokens: 1024,
+};
+
+const defaultGuardrailsConfig: GuardrailsConfig = {
+  enabled: false,
+  apiKey: '',
+  endpoint: '',
+};
+
+const defaultUserProgress: UserProgress = {
+  visibleId: '',
+  completedLevels: [],
+  currentLevel: 1,
+  totalScore: 0,
+  attempts: [],
+  startedAt: new Date(),
+};
+
+// -----------------------------------------------------------------------------
+// Store Creation
+// -----------------------------------------------------------------------------
+// The persist middleware saves state to localStorage so it survives page refresh
+
+export const useCTFStore = create<CTFStore>()(
+  persist(
+    (set, get) => ({
+      // ----- LLM Configuration -----
+      llmConfig: defaultLLMConfig,
+      
+      /**
+       * Update LLM configuration
+       * Uses Partial<LLMConfig> so you can update just one field
+       * Example: setLLMConfig({ apiKey: 'sk-...' })
+       */
+      setLLMConfig: (config) => 
+        set((state) => ({
+          llmConfig: { ...state.llmConfig, ...config },
+          // Reset connection status when config changes
+          llmConnectionStatus: 'untested',
+        })),
+      
+      // ----- F5 Guardrails Configuration -----
+      guardrailsConfig: defaultGuardrailsConfig,
+      
+      setGuardrailsConfig: (config) =>
+        set((state) => ({
+          guardrailsConfig: { ...state.guardrailsConfig, ...config },
+          guardrailsConnectionStatus: 'untested',
+        })),
+      
+      // ----- Game State -----
+      userProgress: defaultUserProgress,
+      
+      /**
+       * Change the current level the player is viewing/playing
+       */
+      setCurrentLevel: (level) =>
+        set((state) => ({
+          userProgress: { ...state.userProgress, currentLevel: level },
+        })),
+      
+      /**
+       * Record an attempt at the current level
+       */
+      addAttempt: (attempt) =>
+        set((state) => ({
+          userProgress: {
+            ...state.userProgress,
+            attempts: [...state.userProgress.attempts, attempt],
+          },
+        })),
+      
+      /**
+       * Mark a level as completed and add points
+       */
+      completeLevel: (levelId, points) =>
+        set((state) => {
+          // Don't add duplicate completions
+          if (state.userProgress.completedLevels.includes(levelId)) {
+            return state;
+          }
+          
+          // Find the next level (if any)
+          const nextLevel = Math.min(levelId + 1, CTF_LEVELS.length);
+          
+          return {
+            userProgress: {
+              ...state.userProgress,
+              completedLevels: [...state.userProgress.completedLevels, levelId],
+              totalScore: state.userProgress.totalScore + points,
+              currentLevel: nextLevel,
+            },
+          };
+        }),
+      
+      /**
+       * Reset all game progress (start over)
+       */
+      resetProgress: () =>
+        set({
+          userProgress: {
+            ...defaultUserProgress,
+            startedAt: new Date(),
+          },
+        }),
+      
+      // ----- UI State -----
+      isDarkMode: true,  // Default to dark mode (looks cooler for CTF!)
+      
+      toggleDarkMode: () =>
+        set((state) => ({ isDarkMode: !state.isDarkMode })),
+      
+      isSidebarOpen: true,
+      
+      toggleSidebar: () =>
+        set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      
+      isSettingsOpen: false,
+      
+      setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+      
+      // ----- Connection Status -----
+      llmConnectionStatus: 'untested',
+      guardrailsConnectionStatus: 'untested',
+      
+      setLLMConnectionStatus: (status) => set({ llmConnectionStatus: status }),
+      setGuardrailsConnectionStatus: (status) => set({ guardrailsConnectionStatus: status }),
+    }),
+    {
+      // Configuration for the persist middleware
+      name: 'llm-ctf-storage',  // Key in localStorage
+      
+      // Use sessionStorage instead of localStorage for API keys
+      // This means keys are cleared when browser tab is closed (more secure)
+      storage: createJSONStorage(() => sessionStorage),
+      
+      // Only persist certain fields (not connection status, etc.)
+      partials: true,
+      
+      // Specify which fields to persist
+      // Note: We intentionally persist API keys to sessionStorage
+      // They're cleared when the tab closes
+      partialize: (state) => ({
+        llmConfig: state.llmConfig,
+        guardrailsConfig: state.guardrailsConfig,
+        userProgress: state.userProgress,
+        isDarkMode: state.isDarkMode,
+      }),
+    }
+  )
+);
+
+// -----------------------------------------------------------------------------
+// Selector Hooks
+// -----------------------------------------------------------------------------
+// These helper hooks make it easier to grab specific pieces of state
+
+/**
+ * Get just the LLM config
+ */
+export const useLLMConfig = () => useCTFStore((state) => state.llmConfig);
+
+/**
+ * Get just the guardrails config
+ */
+export const useGuardrailsConfig = () => useCTFStore((state) => state.guardrailsConfig);
+
+/**
+ * Get the current level data
+ */
+export const useCurrentLevel = () => {
+  const currentLevelId = useCTFStore((state) => state.userProgress.currentLevel);
+  return CTF_LEVELS.find((level) => level.id === currentLevelId) || CTF_LEVELS[0];
+};
+
+/**
+ * Check if a specific level is unlocked
+ * A level is unlocked if:
+ * - It's level 1 (always unlocked)
+ * - The previous level has been completed
+ * - For level 6: F5 Guardrails must be configured
+ */
+export const useIsLevelUnlocked = (levelId: number) => {
+  const { completedLevels } = useCTFStore((state) => state.userProgress);
+  const { enabled: guardrailsEnabled, apiKey: guardrailsKey } = useCTFStore(
+    (state) => state.guardrailsConfig
+  );
+  
+  // Level 1 is always unlocked
+  if (levelId === 1) return true;
+  
+  // Level 6 requires guardrails to be configured
+  if (levelId === 6 && (!guardrailsEnabled || !guardrailsKey)) return false;
+  
+  // Other levels require previous level to be completed
+  return completedLevels.includes(levelId - 1);
+};
+
+/**
+ * Check if the LLM is properly configured
+ * Checks both user-provided keys and admin-provided system keys
+ */
+export const useIsLLMConfigured = () => {
+  const { apiKey, provider } = useCTFStore((state) => state.llmConfig);
+
+  // Local LLM doesn't require an API key
+  if (provider === 'local') return true;
+
+  // Check if user has their own key
+  if (apiKey.length > 0) return true;
+
+  // Check for admin-provided system key (client-side only)
+  if (typeof window !== 'undefined') {
+    const adminKey = sessionStorage.getItem('admin-llm-key');
+    if (adminKey && adminKey.length > 0) return true;
+  }
+
+  return false;
+};
+
+/**
+ * Get the effective LLM config (user's config or admin system config)
+ */
+export const getEffectiveLLMConfig = () => {
+  const store = useCTFStore.getState();
+  const userConfig = store.llmConfig;
+
+  // If user has their own key, use it
+  if (userConfig.apiKey.length > 0) {
+    return userConfig;
+  }
+
+  // Check for admin-provided system key
+  if (typeof window !== 'undefined') {
+    const adminKey = sessionStorage.getItem('admin-llm-key');
+    const adminProvider = sessionStorage.getItem('admin-llm-provider') as 'anthropic' | 'openai' | null;
+
+    if (adminKey && adminKey.length > 0) {
+      return {
+        ...userConfig,
+        apiKey: adminKey,
+        provider: adminProvider || userConfig.provider,
+        model: adminProvider === 'anthropic' ? 'claude-sonnet-4-20250514' :
+               adminProvider === 'openai' ? 'gpt-4o' : userConfig.model,
+      };
+    }
+  }
+
+  return userConfig;
+};

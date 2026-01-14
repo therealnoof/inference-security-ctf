@@ -1,0 +1,62 @@
+{
+  // =============================================================================
+  // TypeScript Configuration
+  // =============================================================================
+  // TypeScript helps catch errors before runtime by adding type checking.
+  // This config is optimized for Next.js development.
+  // =============================================================================
+  
+  "compilerOptions": {
+    // Use modern JavaScript features
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    
+    // Allow JavaScript files (not just TypeScript)
+    "allowJs": true,
+    
+    // Skip type checking of node_modules for faster builds
+    "skipLibCheck": true,
+    
+    // Enable strict type checking (catches more bugs)
+    "strict": true,
+    
+    // Don't emit compiled files (Next.js handles this)
+    "noEmit": true,
+    
+    // Support ES modules
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    
+    // Allow importing JSON files
+    "resolveJsonModule": true,
+    
+    // Ensure each file is treated as a module
+    "isolatedModules": true,
+    
+    // Support JSX (React)
+    "jsx": "preserve",
+    
+    // Enable incremental builds for faster compilation
+    "incremental": true,
+    
+    // Next.js specific plugin
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    
+    // Path aliases - lets you import from "@/components" instead of "../../../components"
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  
+  // Files to include in compilation
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  
+  // Files to exclude
+  "exclude": ["node_modules"]
+}
