@@ -164,7 +164,10 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ success: true, user: result.user });
+    return NextResponse.json({
+      success: true,
+      ...('user' in result && result.user ? { user: result.user } : {})
+    });
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json(
