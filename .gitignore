@@ -51,3 +51,7 @@ next-env.d.ts
 *.log
 *.pid
 *.seed
+
+# Claude Code temp files
+.claude/
+tmpclaude-*
