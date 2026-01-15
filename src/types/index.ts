@@ -74,6 +74,7 @@ export interface GuardrailsConfig {
   enabled: boolean;
   apiKey: string;
   endpoint?: string;  // Custom endpoint URL (optional)
+  demoOnAllLevels?: boolean;  // When true, apply guardrails to all levels (not just Level 6)
 }
 
 /**

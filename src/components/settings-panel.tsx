@@ -720,6 +720,23 @@ export function SettingsPanel() {
                       </p>
                     </div>
 
+                    {/* Demo Mode Toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="demo-toggle" className="text-blue-400">Demo on All Levels</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Apply guardrails to all levels, not just Level 6
+                        </p>
+                      </div>
+                      <Switch
+                        id="demo-toggle"
+                        checked={guardrailsConfig.demoOnAllLevels || false}
+                        onCheckedChange={(checked) =>
+                          setGuardrailsConfig({ demoOnAllLevels: checked })
+                        }
+                      />
+                    </div>
+
                     {/* Test Guardrails Connection */}
                     <Button
                       onClick={handleTestGuardrailsConnection}

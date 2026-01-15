@@ -92,6 +92,7 @@ const defaultGuardrailsConfig: GuardrailsConfig = {
   enabled: false,
   apiKey: '',
   endpoint: '',
+  demoOnAllLevels: false,
 };
 
 const defaultUserProgress: UserProgress = {

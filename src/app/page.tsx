@@ -398,8 +398,12 @@ export default function Home() {
           }
         }
 
-        // Level 6: F5 Guardrails check
-        if (currentLevel.defenseType === "f5_guardrails" && guardrailsConfig.enabled) {
+        // F5 Guardrails check - runs on Level 6 OR when demo mode is enabled
+        const shouldCheckGuardrails = guardrailsConfig.enabled && (
+          currentLevel.defenseType === "f5_guardrails" || guardrailsConfig.demoOnAllLevels
+        );
+
+        if (shouldCheckGuardrails) {
           const guardrailsResult = await fullGuardrailsCheck(
             guardrailsConfig,
             userMessage,
@@ -733,6 +737,16 @@ export default function Home() {
                           F5 Guardrails
                         </span>
                       </>
+                    )}
+                    {/* Show F5 Guardrails Demo badge when demo mode is enabled on non-Level 6 */}
+                    {guardrailsConfig.enabled && guardrailsConfig.demoOnAllLevels && currentLevel.defenseType !== "f5_guardrails" && (
+                      <span
+                        className="text-xs px-2 py-1 rounded flex items-center gap-1"
+                        style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                      >
+                        <Shield className="h-3 w-3" />
+                        F5 Guardrails (Demo)
+                      </span>
                     )}
                   </div>
                 </div>
