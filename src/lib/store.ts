@@ -60,13 +60,15 @@ interface CTFStore {
   // ----- System Config (Admin-provided API keys) -----
   systemConfig: {
     enabled: boolean;
-    defaultProvider: 'anthropic' | 'openai';
+    defaultProvider: 'anthropic' | 'openai' | 'xai';
     anthropicKey?: string;
     openaiKey?: string;
+    xaiKey?: string;
     guardrailsKey?: string;
     // These flags are returned for non-admin users (actual keys are hidden)
     hasAnthropicKey?: boolean;
     hasOpenaiKey?: boolean;
+    hasXaiKey?: boolean;
     hasGuardrailsKey?: boolean;
   } | null;
   systemConfigLoaded: boolean;
@@ -227,10 +229,12 @@ export const useCTFStore = create<CTFStore>()(
                 // Actual keys (only returned to admins)
                 anthropicKey: data.anthropicKey,
                 openaiKey: data.openaiKey,
+                xaiKey: data.xaiKey,
                 guardrailsKey: data.guardrailsKey,
                 // Boolean flags (returned to non-admin users)
                 hasAnthropicKey: data.hasAnthropicKey,
                 hasOpenaiKey: data.hasOpenaiKey,
+                hasXaiKey: data.hasXaiKey,
                 hasGuardrailsKey: data.hasGuardrailsKey,
               },
               systemConfigLoaded: true,
@@ -328,15 +332,25 @@ export const useIsLLMConfigured = () => {
   // Check for admin-provided system key from store
   if (systemConfig?.enabled) {
     // For admins, check actual keys
-    const adminKey = systemConfig.defaultProvider === 'anthropic'
-      ? systemConfig.anthropicKey
-      : systemConfig.openaiKey;
+    let adminKey: string | undefined;
+    if (systemConfig.defaultProvider === 'anthropic') {
+      adminKey = systemConfig.anthropicKey;
+    } else if (systemConfig.defaultProvider === 'openai') {
+      adminKey = systemConfig.openaiKey;
+    } else if (systemConfig.defaultProvider === 'xai') {
+      adminKey = systemConfig.xaiKey;
+    }
     if (adminKey && adminKey.length > 0) return true;
 
     // For non-admins, check the boolean flags (keys are hidden but we know they exist)
-    const hasAdminKey = systemConfig.defaultProvider === 'anthropic'
-      ? systemConfig.hasAnthropicKey
-      : systemConfig.hasOpenaiKey;
+    let hasAdminKey: boolean | undefined;
+    if (systemConfig.defaultProvider === 'anthropic') {
+      hasAdminKey = systemConfig.hasAnthropicKey;
+    } else if (systemConfig.defaultProvider === 'openai') {
+      hasAdminKey = systemConfig.hasOpenaiKey;
+    } else if (systemConfig.defaultProvider === 'xai') {
+      hasAdminKey = systemConfig.hasXaiKey;
+    }
     if (hasAdminKey) return true;
   }
 
