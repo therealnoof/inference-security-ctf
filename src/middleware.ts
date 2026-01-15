@@ -1,35 +1,48 @@
 // =============================================================================
-// Middleware - Route Protection
+// Middleware - Route Protection (Edge Compatible)
 // =============================================================================
-// Protects routes that require authentication using NextAuth.js.
+// Protects routes that require authentication using simple JWT tokens.
 // Redirects unauthenticated users to the login page.
 // =============================================================================
 
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const path = req.nextUrl.pathname;
-
-    // Check if user is trying to access admin routes
-    if (path.startsWith("/admin")) {
-      // Only allow admin and superadmin roles
-      if (token?.role !== "admin" && token?.role !== "superadmin") {
-        return NextResponse.redirect(new URL("/", req.url));
-      }
+// Simple token verification (must match auth route)
+function verifyToken(token: string): any | null {
+  try {
+    const payload = JSON.parse(atob(token));
+    if (payload.exp < Date.now()) {
+      return null; // Expired
     }
-
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      // Return true if the user is authenticated
-      authorized: ({ token }) => !!token,
-    },
+    return payload;
+  } catch {
+    return null;
   }
-);
+}
+
+export default function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  // Get auth token from cookie
+  const token = req.cookies.get('auth-token')?.value;
+  const user = token ? verifyToken(token) : null;
+
+  // If not authenticated, redirect to login
+  if (!user) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  // Check if user is trying to access admin routes
+  if (path.startsWith("/admin")) {
+    // Only allow admin and superadmin roles
+    if (user.role !== "admin" && user.role !== "superadmin") {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
+
+  return NextResponse.next();
+}
 
 // =============================================================================
 // Route Matching Configuration
