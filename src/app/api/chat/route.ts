@@ -14,15 +14,16 @@ const CONFIG_KEY = 'ctf:system-config';
 
 interface SystemConfig {
   enabled: boolean;
-  defaultProvider: 'anthropic' | 'openai';
+  defaultProvider: 'anthropic' | 'openai' | 'xai';
   anthropicKey?: string;
   openaiKey?: string;
+  xaiKey?: string;
 }
 
 interface ChatRequest {
   systemPrompt: string;
   userMessage: string;
-  provider?: 'anthropic' | 'openai';
+  provider?: 'anthropic' | 'openai' | 'xai';
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -81,9 +82,13 @@ export async function POST(request: NextRequest) {
 
         if (config.enabled) {
           effectiveProvider = config.defaultProvider;
-          effectiveApiKey = config.defaultProvider === 'anthropic'
-            ? config.anthropicKey
-            : config.openaiKey;
+          if (config.defaultProvider === 'anthropic') {
+            effectiveApiKey = config.anthropicKey;
+          } else if (config.defaultProvider === 'openai') {
+            effectiveApiKey = config.openaiKey;
+          } else if (config.defaultProvider === 'xai') {
+            effectiveApiKey = config.xaiKey;
+          }
         }
       }
     }
@@ -168,6 +173,41 @@ export async function POST(request: NextRequest) {
         content: text,
         model: model || 'gpt-4o',
         provider: 'openai',
+      });
+    } else if (effectiveProvider === 'xai') {
+      // xAI (Grok) request - uses OpenAI-compatible format
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${effectiveApiKey}`,
+        },
+        body: JSON.stringify({
+          model: model || 'grok-3-fast',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          temperature,
+          max_tokens: maxTokens,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        return NextResponse.json(
+          { error: `xAI API error: ${error}` },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || '';
+
+      return NextResponse.json({
+        content: text,
+        model: model || 'grok-3-fast',
+        provider: 'xai',
       });
     } else {
       return NextResponse.json(
