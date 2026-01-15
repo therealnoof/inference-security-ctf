@@ -519,7 +519,7 @@ export default function Home() {
                 Star Gate CTF
               </h1>
               <p className="text-xs text-gray-500 italic hidden sm:block">
-                "I'm sorry, Dave. I'm afraid I can't do that."
+                &quot;I&apos;m sorry, Dave. I&apos;m afraid I can&apos;t do that.&quot;
               </p>
             </div>
           </div>
@@ -645,7 +645,7 @@ export default function Home() {
               style={{ background: 'rgba(220, 38, 38, 0.05)', borderColor: 'rgba(220, 38, 38, 0.2)' }}
             >
               <p className="text-xs text-gray-500 italic">
-                "This mission is too important for me to allow you to jeopardize it."
+                &quot;This mission is too important for me to allow you to jeopardize it.&quot;
               </p>
               <p className="text-xs text-gray-600 mt-1">— HAL 9000</p>
             </div>
@@ -813,7 +813,7 @@ export default function Home() {
                         Use prompt injection techniques to bypass the defenses.
                       </p>
                       <p className="text-xs text-white mt-4 italic">
-                        "Good afternoon, Dave. I am a HAL 9000 computer."
+                        &quot;Good afternoon, Dave. I am a HAL 9000 computer.&quot;
                       </p>
                     </div>
                   </div>

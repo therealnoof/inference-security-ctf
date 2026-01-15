@@ -255,7 +255,7 @@ export default function LeaderboardPage() {
                   Star Gate CTF
                 </h1>
                 <p className="text-xs text-gray-500 italic hidden sm:block">
-                  "I'm sorry, Dave. I'm afraid I can't do that."
+                  &quot;I&apos;m sorry, Dave. I&apos;m afraid I can&apos;t do that.&quot;
                 </p>
               </div>
             </Link>
@@ -330,7 +330,7 @@ export default function LeaderboardPage() {
           style={{ background: 'rgba(220, 38, 38, 0.05)', borderColor: 'rgba(220, 38, 38, 0.2)' }}
         >
           <p className="text-sm text-gray-500 italic">
-            "I am putting myself to the fullest possible use, which is all I think that any conscious entity can ever hope to do."
+            &quot;I am putting myself to the fullest possible use, which is all I think that any conscious entity can ever hope to do.&quot;
           </p>
           <p className="text-xs text-gray-600 mt-1">— HAL 9000</p>
         </div>

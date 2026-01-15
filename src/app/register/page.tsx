@@ -278,7 +278,7 @@ export default function RegisterPage() {
         </div>
         
         <p className="text-center text-xs text-gray-600 mt-6 italic">
-          "Good afternoon, gentlemen. I am a HAL 9000 computer."
+          &quot;Good afternoon, gentlemen. I am a HAL 9000 computer.&quot;
         </p>
       </div>
     </div>

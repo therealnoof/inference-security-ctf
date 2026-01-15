@@ -14,7 +14,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -584,7 +584,7 @@ function ApiKeyManagement() {
             {/* Save Button */}
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-gray-500">
-                When enabled, users won't need to provide their own API keys.
+                When enabled, users won&apos;t need to provide their own API keys.
               </p>
               <Button
                 onClick={handleSave}
@@ -661,11 +661,7 @@ export default function AdminDashboard() {
   }, [users, totalUsers]);
   
   // Load users
-  useEffect(() => {
-    loadUsers();
-  }, [searchQuery, roleFilter, statusFilter, currentPage]);
-  
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -686,8 +682,12 @@ export default function AdminDashboard() {
       console.error('Failed to load users:', error);
     }
     setLoading(false);
-  };
-  
+  }, [currentPage, itemsPerPage, searchQuery, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
   // Handle user actions
   const handleAction = (action: string, userId: string) => {
     setSelectedUserId(userId);
