@@ -1,5 +1,5 @@
 // =============================================================================
-// Register Page - Inference Security CTF
+// Register Page - Star Gate CTF
 // =============================================================================
 // Space Odyssey 2001 themed registration page.
 // Creates new user accounts with email/password.
@@ -160,7 +160,7 @@ export default function RegisterPage() {
           <div className="flex items-center justify-center gap-4 mb-4">
             <HalEye size={48} />
             <h1 className="text-3xl font-bold text-white tracking-wide">
-              Inference Security CTF
+              Star Gate CTF
             </h1>
           </div>
           <p className="text-gray-500 mt-2">Create your operator account</p>

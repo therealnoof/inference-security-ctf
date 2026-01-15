@@ -1,5 +1,5 @@
 // =============================================================================
-// Main Page Component - Inference Security CTF
+// Main Page Component - Star Gate CTF
 // =============================================================================
 // Space Odyssey 2001 / HAL 9000 themed CTF interface
 // =============================================================================
@@ -499,7 +499,7 @@ export default function Home() {
             <HalEye size={36} />
             <div>
               <h1 className="text-lg font-bold text-white tracking-wide font-display">
-                Inference Security CTF
+                Star Gate CTF
               </h1>
               <p className="text-xs text-gray-500 italic hidden sm:block">
                 "I'm sorry, Dave. I'm afraid I can't do that."

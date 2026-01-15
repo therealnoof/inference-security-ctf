@@ -1,5 +1,5 @@
 // =============================================================================
-// Leaderboard Page - Inference Security CTF
+// Leaderboard Page - Star Gate CTF
 // =============================================================================
 // Displays top players ranked by score
 // =============================================================================
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
               <HalEye size={36} />
               <div>
                 <h1 className="text-lg font-bold text-white tracking-wide font-display">
-                  Inference Security CTF
+                  Star Gate CTF
                 </h1>
                 <p className="text-xs text-gray-500 italic hidden sm:block">
                   "I'm sorry, Dave. I'm afraid I can't do that."
