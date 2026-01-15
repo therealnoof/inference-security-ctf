@@ -65,6 +65,7 @@ interface CTFStore {
     openaiKey?: string;
     guardrailsKey?: string;
   } | null;
+  systemConfigLoaded: boolean;
   setSystemConfig: (config: CTFStore['systemConfig']) => void;
   fetchSystemConfig: () => Promise<void>;
 }
@@ -208,6 +209,7 @@ export const useCTFStore = create<CTFStore>()(
 
       // ----- System Config -----
       systemConfig: null,
+      systemConfigLoaded: false,
       setSystemConfig: (config) => set({ systemConfig: config }),
       fetchSystemConfig: async () => {
         try {
@@ -221,11 +223,15 @@ export const useCTFStore = create<CTFStore>()(
                 anthropicKey: data.anthropicKey,
                 openaiKey: data.openaiKey,
                 guardrailsKey: data.guardrailsKey,
-              }
+              },
+              systemConfigLoaded: true,
             });
+          } else {
+            set({ systemConfigLoaded: true });
           }
         } catch (error) {
           console.error('Failed to fetch system config:', error);
+          set({ systemConfigLoaded: true });
         }
       },
     }),

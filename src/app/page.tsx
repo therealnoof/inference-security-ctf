@@ -274,6 +274,7 @@ export default function Home() {
 
   const currentLevel = useCurrentLevel();
   const isConfigured = useIsLLMConfigured();
+  const systemConfigLoaded = useCTFStore((state) => state.systemConfigLoaded);
 
   // Local state
   const [input, setInput] = useState("");
@@ -748,8 +749,8 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            {/* API Key Warning */}
-            {!isConfigured && (
+            {/* API Key Warning - only show after config has loaded */}
+            {systemConfigLoaded && !isConfigured && (
               <Card
                 className="border"
                 style={{ background: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)' }}
