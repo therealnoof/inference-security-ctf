@@ -101,7 +101,7 @@ export function SettingsPanel() {
       try {
         const res = await fetch('/api/config');
         const config = await res.json();
-        setAdminKeysEnabled(config.enabled && (config.hasAnthropicKey || config.hasOpenaiKey));
+        setAdminKeysEnabled(config.enabled && (config.hasAnthropicKey || config.hasOpenaiKey || config.hasXaiKey));
         setAdminProvider(config.defaultProvider || '');
       } catch (error) {
         console.error('Failed to fetch system config:', error);
@@ -261,7 +261,7 @@ export function SettingsPanel() {
                   <span className="font-medium">System API Keys Active</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  API keys are managed by the administrator. You&apos;re using {adminProvider === 'anthropic' ? 'Anthropic (Claude)' : 'OpenAI (GPT)'}.
+                  API keys are managed by the administrator. You&apos;re using {adminProvider === 'anthropic' ? 'Anthropic (Claude)' : adminProvider === 'xai' ? 'xAI (Grok)' : 'OpenAI (GPT)'}.
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   No additional configuration needed - just start playing!
