@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { User, SessionUser, UserRole, UserStatus } from '@/types/auth';
+import { getEnv } from '@/lib/cloudflare';
 
 // -----------------------------------------------------------------------------
 // Configuration
@@ -54,42 +55,41 @@ interface KVNamespace {
 }
 
 // -----------------------------------------------------------------------------
-// Default Data
+// Default Data (loaded from environment variables for security)
 // -----------------------------------------------------------------------------
 
-const defaultUsers: User[] = [
-  {
-    id: 'admin-1',
-    email: 'admin@llmctf.com',
-    displayName: 'Admin',
-    role: 'superadmin',
-    status: 'active',
-    totalScore: 0,
-    levelsCompleted: 0,
-    totalAttempts: 0,
-    createdAt: new Date('2024-01-01'),
-    authProvider: 'basic',
-  },
-  {
-    id: 'user-1',
-    email: 'player@example.com',
-    displayName: 'Demo Player',
-    role: 'player',
-    status: 'active',
-    totalScore: 2450,
-    levelsCompleted: 4,
-    totalAttempts: 28,
-    bestTime: 1965,
-    createdAt: new Date('2024-06-15'),
-    lastLoginAt: new Date(),
-    authProvider: 'basic',
-  },
-];
+function getDefaultUsers(): User[] {
+  const adminEmail = getEnv('ADMIN_EMAIL') || 'admin@localhost';
 
-const defaultPasswords: Record<string, string> = {
-  'admin@llmctf.com': 'admin123',
-  'player@example.com': 'player123',
-};
+  return [
+    {
+      id: 'admin-1',
+      email: adminEmail,
+      displayName: 'Admin',
+      role: 'superadmin',
+      status: 'active',
+      totalScore: 0,
+      levelsCompleted: 0,
+      totalAttempts: 0,
+      createdAt: new Date('2024-01-01'),
+      authProvider: 'basic',
+    },
+  ];
+}
+
+function getDefaultPasswords(): Record<string, string> {
+  const adminEmail = getEnv('ADMIN_EMAIL') || 'admin@localhost';
+  const adminPassword = getEnv('ADMIN_PASSWORD') || '';
+
+  // Only return defaults if both email and password are set
+  if (!adminEmail || !adminPassword) {
+    return {};
+  }
+
+  return {
+    [adminEmail]: adminPassword,
+  };
+}
 
 // -----------------------------------------------------------------------------
 // KV Helper Functions
@@ -100,8 +100,8 @@ async function getUsers(kv: KVNamespace): Promise<User[]> {
     const data = await kv.get(KV_KEYS.USERS, { type: 'json' });
     if (!data) {
       // Initialize with defaults
-      await kv.put(KV_KEYS.USERS, JSON.stringify(defaultUsers));
-      return defaultUsers;
+      await kv.put(KV_KEYS.USERS, JSON.stringify(getDefaultUsers()));
+      return getDefaultUsers();
     }
     // Convert date strings back to Date objects
     return data.map((u: any) => ({
@@ -112,7 +112,7 @@ async function getUsers(kv: KVNamespace): Promise<User[]> {
     }));
   } catch (error) {
     console.error('Error loading users from KV:', error);
-    return defaultUsers;
+    return getDefaultUsers();
   }
 }
 
@@ -128,13 +128,13 @@ async function getPasswords(kv: KVNamespace): Promise<Record<string, string>> {
   try {
     const data = await kv.get(KV_KEYS.PASSWORDS, { type: 'json' });
     if (!data) {
-      await kv.put(KV_KEYS.PASSWORDS, JSON.stringify(defaultPasswords));
-      return defaultPasswords;
+      await kv.put(KV_KEYS.PASSWORDS, JSON.stringify(getDefaultPasswords()));
+      return getDefaultPasswords();
     }
     return data;
   } catch (error) {
     console.error('Error loading passwords from KV:', error);
-    return defaultPasswords;
+    return getDefaultPasswords();
   }
 }
 

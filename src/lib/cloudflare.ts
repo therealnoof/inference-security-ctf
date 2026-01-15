@@ -23,6 +23,9 @@ export interface CloudflareEnv {
   AUTH0_ISSUER?: string;
   NEXTAUTH_URL?: string;
   NEXT_PUBLIC_AUTH_PROVIDER?: string;
+  // Admin credentials
+  ADMIN_EMAIL?: string;
+  ADMIN_PASSWORD?: string;
   // Allow any other env vars
   [key: string]: any;
 }

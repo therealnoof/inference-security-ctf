@@ -38,6 +38,10 @@ services:
       - AUTH0_ISSUER=${AUTH0_ISSUER}
       - NEXT_PUBLIC_AUTH_PROVIDER=auth0
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+
+      # Admin account (created on first run)
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     
     # Health check to ensure the app is running
     healthcheck:
