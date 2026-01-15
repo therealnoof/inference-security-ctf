@@ -53,6 +53,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/form-components";
 import { User, UserRole, UserStatus, hasPermission } from "@/types/auth";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { useCTFStore } from "@/lib/store";
 
 // -----------------------------------------------------------------------------
 // Types
@@ -662,6 +663,9 @@ function ApiKeyManagement() {
 // -----------------------------------------------------------------------------
 
 export default function AdminDashboard() {
+  // Get resetProgress from store to clear local state after admin reset
+  const { resetProgress } = useCTFStore();
+
   // State
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -805,6 +809,10 @@ export default function AdminDashboard() {
 
       const result = await response.json();
       alert(result.message);
+
+      // Also reset local store progress (for the admin user viewing this page)
+      resetProgress();
+
       loadUsers(); // Refresh the user list
     } catch (error) {
       console.error('Reset failed:', error);
