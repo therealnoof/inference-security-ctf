@@ -367,8 +367,9 @@ function StatsCard({
 interface ApiKeyConfig {
   anthropicKey: string;
   openaiKey: string;
+  xaiKey: string;
   guardrailsKey: string;
-  defaultProvider: 'anthropic' | 'openai';
+  defaultProvider: 'anthropic' | 'openai' | 'xai';
   enabled: boolean;
 }
 
@@ -376,6 +377,7 @@ function ApiKeyManagement() {
   const [config, setConfig] = useState<ApiKeyConfig>({
     anthropicKey: '',
     openaiKey: '',
+    xaiKey: '',
     guardrailsKey: '',
     defaultProvider: 'anthropic',
     enabled: false,
@@ -383,6 +385,7 @@ function ApiKeyManagement() {
   const [showKeys, setShowKeys] = useState({
     anthropic: false,
     openai: false,
+    xai: false,
     guardrails: false,
   });
   const [saving, setSaving] = useState(false);
@@ -398,6 +401,7 @@ function ApiKeyManagement() {
           setConfig({
             anthropicKey: data.anthropicKey || '',
             openaiKey: data.openaiKey || '',
+            xaiKey: data.xaiKey || '',
             guardrailsKey: data.guardrailsKey || '',
             defaultProvider: data.defaultProvider || 'anthropic',
             enabled: data.enabled || false,
@@ -503,6 +507,18 @@ function ApiKeyManagement() {
                   <Bot className="h-4 w-4" />
                   OpenAI (GPT)
                 </button>
+                <button
+                  onClick={() => setConfig(c => ({ ...c, defaultProvider: 'xai' }))}
+                  className={cn(
+                    "flex-1 p-3 rounded-lg border transition-all flex items-center justify-center gap-2",
+                    config.defaultProvider === 'xai'
+                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                      : "border-gray-700 text-gray-400 hover:border-gray-600"
+                  )}
+                >
+                  <Bot className="h-4 w-4" />
+                  xAI (Grok)
+                </button>
               </div>
             </div>
 
@@ -553,6 +569,31 @@ function ApiKeyManagement() {
               </div>
               {config.openaiKey && !showKeys.openai && (
                 <p className="text-xs text-gray-500">Key: {maskKey(config.openaiKey)}</p>
+              )}
+            </div>
+
+            {/* xAI API Key */}
+            <div className="space-y-2">
+              <Label className="text-gray-300">xAI API Key (Grok)</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showKeys.xai ? "text" : "password"}
+                    value={config.xaiKey}
+                    onChange={(e) => setConfig(c => ({ ...c, xaiKey: e.target.value }))}
+                    placeholder="xai-..."
+                    className="pr-10 bg-gray-900 border-gray-700"
+                  />
+                  <button
+                    onClick={() => setShowKeys(s => ({ ...s, xai: !s.xai }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  >
+                    {showKeys.xai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              {config.xaiKey && !showKeys.xai && (
+                <p className="text-xs text-gray-500">Key: {maskKey(config.xaiKey)}</p>
               )}
             </div>
 

@@ -15,7 +15,7 @@
  * - openai: GPT models
  * - local: Self-hosted models via Ollama or similar
  */
-export type LLMProvider = 'anthropic' | 'openai' | 'local';
+export type LLMProvider = 'anthropic' | 'openai' | 'xai' | 'local';
 
 /**
  * Available models for each provider
@@ -33,6 +33,13 @@ export const AVAILABLE_MODELS: Record<LLMProvider, string[]> = {
     'gpt-4o-mini',
     'gpt-4-turbo',
     'gpt-3.5-turbo',
+  ],
+  xai: [
+    'grok-4-1-fast-reasoning',
+    'grok-3',
+    'grok-3-fast',
+    'grok-2',
+    'grok-2-vision',
   ],
   local: [
     'llama3.1:8b',

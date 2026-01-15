@@ -13,9 +13,10 @@ const CONFIG_KEY = 'ctf:system-config';
 
 interface SystemConfig {
   enabled: boolean;
-  defaultProvider: 'anthropic' | 'openai';
+  defaultProvider: 'anthropic' | 'openai' | 'xai';
   anthropicKey?: string;
   openaiKey?: string;
+  xaiKey?: string;
   guardrailsKey?: string;
   guardrailsEndpoint?: string;
 }
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       defaultProvider: config.defaultProvider,
       hasAnthropicKey: !!config.anthropicKey,
       hasOpenaiKey: !!config.openaiKey,
+      hasXaiKey: !!config.xaiKey,
       hasGuardrailsKey: !!config.guardrailsKey,
     });
   } catch (error) {
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
       defaultProvider: body.defaultProvider || 'anthropic',
       anthropicKey: body.anthropicKey,
       openaiKey: body.openaiKey,
+      xaiKey: body.xaiKey,
       guardrailsKey: body.guardrailsKey,
       guardrailsEndpoint: body.guardrailsEndpoint,
     };

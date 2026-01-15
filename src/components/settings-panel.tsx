@@ -269,6 +269,15 @@ export function SettingsPanel() {
               </div>
             ) : (
               <>
+                {/* Model Recommendation Note */}
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-sm">
+                  <p className="text-blue-400 font-medium mb-1">Recommended Models</p>
+                  <p className="text-muted-foreground text-xs">
+                    For the best CTF experience, use <strong>Grok</strong>, <strong>GPT-3.5</strong>, or <strong>Mistral</strong>.
+                    Claude and GPT-4 have stronger safety training which makes some levels significantly harder.
+                  </p>
+                </div>
+
                 {/* Provider Selection */}
                 <div className="space-y-2">
                   <Label htmlFor="provider">Provider</Label>
@@ -282,6 +291,7 @@ export function SettingsPanel() {
                     <SelectContent>
                       <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                       <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                      <SelectItem value="xai">xAI (Grok)</SelectItem>
                       <SelectItem value="local">Local LLM (Ollama)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -300,6 +310,8 @@ export function SettingsPanel() {
                         placeholder={
                           llmConfig.provider === 'anthropic'
                             ? "sk-ant-..."
+                            : llmConfig.provider === 'xai'
+                            ? "xai-..."
                             : "sk-..."
                         }
                         className="pr-10"

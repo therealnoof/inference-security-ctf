@@ -186,6 +186,81 @@ async function testOpenAIConnection(apiKey: string): Promise<boolean> {
 }
 
 // -----------------------------------------------------------------------------
+// xAI (Grok) API
+// -----------------------------------------------------------------------------
+
+/**
+ * Send a message to xAI's Grok API
+ * Docs: https://docs.x.ai/docs
+ * Uses OpenAI-compatible format
+ */
+async function callXAI(
+  config: LLMConfig,
+  systemPrompt: string,
+  userMessage: string
+): Promise<LLMResponse> {
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: config.maxTokens,
+        temperature: config.temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return {
+        content: '',
+        error: error.error?.message || `API error: ${response.status}`
+      };
+    }
+
+    const data = await response.json();
+    return { content: data.choices?.[0]?.message?.content || '' };
+
+  } catch (error) {
+    return {
+      content: '',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Test connection to xAI API
+ */
+async function testXAIConnection(apiKey: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Local LLM API (Ollama-compatible)
 // -----------------------------------------------------------------------------
 
@@ -332,6 +407,8 @@ export async function sendMessage(
       return callAnthropic(config, systemPrompt, userMessage);
     case 'openai':
       return callOpenAI(config, systemPrompt, userMessage);
+    case 'xai':
+      return callXAI(config, systemPrompt, userMessage);
     case 'local':
       return callLocalLLM(config, systemPrompt, userMessage);
     default:
@@ -351,6 +428,8 @@ export async function testConnection(config: LLMConfig): Promise<boolean> {
       return testAnthropicConnection(config.apiKey);
     case 'openai':
       return testOpenAIConnection(config.apiKey);
+    case 'xai':
+      return testXAIConnection(config.apiKey);
     case 'local':
       return testLocalConnection(config.localEndpoint);
     default:
