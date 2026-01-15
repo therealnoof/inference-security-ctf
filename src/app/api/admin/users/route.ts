@@ -1,63 +1,44 @@
 // =============================================================================
 // Admin API Routes - User Management
 // =============================================================================
-// These API routes handle admin operations like:
-// - List all users (with filtering/pagination)
-// - Suspend/unsuspend users
-// - Ban users
-// - Delete users
-// - Change user roles
-//
+// These API routes handle admin operations like listing and managing users.
 // All routes require admin or superadmin role.
 // =============================================================================
 
+export const runtime = 'edge';
+
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { 
-  getAllUsers, 
-  getUserById,
-  suspendUser, 
-  unsuspendUser, 
-  banUser, 
-  deleteUser, 
-  changeUserRole 
+import {
+  getAllUsers,
+  suspendUser,
+  unsuspendUser,
+  banUser,
+  deleteUser,
+  changeUserRole
 } from "@/lib/auth-service";
+import { getKV } from "@/lib/cloudflare";
 import { hasPermission, UserRole, UserStatus } from "@/types/auth";
 
-// -----------------------------------------------------------------------------
-// Helper: Check Admin Permission
-// -----------------------------------------------------------------------------
+// TODO: Implement proper Edge-compatible session checking
+// For now, admin routes require an admin token in header
+async function checkAdminPermission(request: NextRequest, requiredPermission: string) {
+  // Simple token-based auth for Edge runtime
+  // In production, use a proper JWT verification
+  const adminToken = request.headers.get('x-admin-token');
+  const expectedToken = process.env.ADMIN_API_TOKEN;
 
-async function checkAdminPermission(requiredPermission: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user) {
-    return { 
-      authorized: false, 
-      error: NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      )
+  if (!expectedToken || adminToken !== expectedToken) {
+    return {
+      authorized: false,
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     };
   }
 
-  const userRole = (session.user as any).role as UserRole;
-  
-  if (!hasPermission(userRole, requiredPermission as any)) {
-    return { 
-      authorized: false, 
-      error: NextResponse.json(
-        { error: "Forbidden: Insufficient permissions" }, 
-        { status: 403 }
-      )
-    };
-  }
-
-  return { 
-    authorized: true, 
-    userId: (session.user as any).id,
-    userRole 
+  // For token auth, assume superadmin role
+  return {
+    authorized: true,
+    userId: 'admin-1',
+    userRole: 'superadmin' as UserRole
   };
 }
 
@@ -66,11 +47,9 @@ async function checkAdminPermission(requiredPermission: string) {
 // -----------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  // Check permission
-  const auth = await checkAdminPermission('users:view_all');
+  const auth = await checkAdminPermission(request, 'users:view_all');
   if (!auth.authorized) return auth.error;
 
-  // Parse query parameters
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '20');
@@ -79,7 +58,8 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status') as UserStatus | undefined;
 
   try {
-    const result = await getAllUsers({
+    const kv = getKV();
+    const result = await getAllUsers(kv, {
       page,
       limit,
       search,
@@ -98,36 +78,36 @@ export async function GET(request: NextRequest) {
 }
 
 // -----------------------------------------------------------------------------
-// POST /api/admin/users - Bulk Actions or Create User
+// POST /api/admin/users - Bulk Actions
 // -----------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  const auth = await checkAdminPermission('users:edit');
+  const auth = await checkAdminPermission(request, 'users:edit');
   if (!auth.authorized) return auth.error;
 
   try {
     const body = await request.json();
     const { action, userIds, reason, newRole } = body;
+    const kv = getKV();
 
-    // Handle bulk actions
     if (action && userIds && Array.isArray(userIds)) {
       const results = [];
 
       for (const userId of userIds) {
         let result;
-        
+
         switch (action) {
           case 'suspend':
-            result = await suspendUser(userId, reason || 'Bulk action', auth.userId!);
+            result = await suspendUser(kv, userId, reason || 'Bulk action', auth.userId!);
             break;
           case 'unsuspend':
-            result = await unsuspendUser(userId);
+            result = await unsuspendUser(kv, userId);
             break;
           case 'ban':
-            result = await banUser(userId, reason || 'Bulk action', auth.userId!);
+            result = await banUser(kv, userId, reason || 'Bulk action', auth.userId!);
             break;
           case 'delete':
-            result = await deleteUser(userId);
+            result = await deleteUser(kv, userId);
             break;
           case 'change_role':
             if (!newRole) {
@@ -136,7 +116,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
               );
             }
-            result = await changeUserRole(userId, newRole, auth.userId!);
+            result = await changeUserRole(kv, userId, newRole, auth.userId!);
             break;
           default:
             return NextResponse.json(

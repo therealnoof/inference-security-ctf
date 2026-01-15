@@ -1,65 +1,62 @@
 // =============================================================================
-// Authentication Service
+// Authentication Service - Cloudflare KV Edition
 // =============================================================================
-// Handles user authentication with support for:
-// - Auth0 (recommended for production)
-// - Basic Auth (email/password with JWT)
-// - OAuth providers (Google, GitHub) via Auth0
-//
-// This service provides a unified interface regardless of auth provider.
-// User data persists to a JSON file for development convenience.
+// Handles user authentication with Cloudflare KV storage for Edge Runtime.
+// All data is stored in KV namespace bound as CTF_KV.
 // =============================================================================
 
 import { User, SessionUser, UserRole, UserStatus } from '@/types/auth';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // -----------------------------------------------------------------------------
 // Configuration
 // -----------------------------------------------------------------------------
 
-/**
- * Auth configuration from environment variables
- * In production, these should be set in your deployment environment
- */
 export const authConfig = {
-  // Which provider to use
   provider: (process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'basic') as 'auth0' | 'basic',
-
-  // Auth0 settings
   auth0: {
     domain: process.env.AUTH0_DOMAIN || '',
     clientId: process.env.AUTH0_CLIENT_ID || '',
     clientSecret: process.env.AUTH0_CLIENT_SECRET || '',
     audience: process.env.AUTH0_AUDIENCE || '',
   },
-
-  // Basic auth settings
   basic: {
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
-
-  // Session settings
   session: {
-    maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+    maxAge: 60 * 60 * 24 * 7,
   },
 };
 
 // -----------------------------------------------------------------------------
-// Persistent User Storage
+// KV Storage Keys
 // -----------------------------------------------------------------------------
 
-// Path to the users data file
-const DATA_DIR = path.join(process.cwd(), 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const KV_KEYS = {
+  USERS: 'ctf:users',
+  PASSWORDS: 'ctf:passwords',
+};
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
 
 interface StoredData {
   users: User[];
   passwords: Record<string, string>;
 }
 
-// Default users for initial setup
+// KV Namespace type (from Cloudflare)
+interface KVNamespace {
+  get(key: string, options?: { type?: 'text' | 'json' | 'arrayBuffer' | 'stream' }): Promise<any>;
+  put(key: string, value: string | ArrayBuffer | ReadableStream, options?: { expiration?: number; expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+// -----------------------------------------------------------------------------
+// Default Data
+// -----------------------------------------------------------------------------
+
 const defaultUsers: User[] = [
   {
     id: 'admin-1',
@@ -94,98 +91,103 @@ const defaultPasswords: Record<string, string> = {
   'player@example.com': 'player123',
 };
 
-/**
- * Load users from file or initialize with defaults
- */
-function loadUsers(): StoredData {
+// -----------------------------------------------------------------------------
+// KV Helper Functions
+// -----------------------------------------------------------------------------
+
+async function getUsers(kv: KVNamespace): Promise<User[]> {
   try {
-    // Ensure data directory exists
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const data = await kv.get(KV_KEYS.USERS, { type: 'json' });
+    if (!data) {
+      // Initialize with defaults
+      await kv.put(KV_KEYS.USERS, JSON.stringify(defaultUsers));
+      return defaultUsers;
     }
-
-    // Load from file if it exists
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-
-      // Convert date strings back to Date objects
-      parsed.users = parsed.users.map((u: any) => ({
-        ...u,
-        createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
-        lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt) : undefined,
-        suspendedAt: u.suspendedAt ? new Date(u.suspendedAt) : undefined,
-      }));
-
-      return parsed;
-    }
+    // Convert date strings back to Date objects
+    return data.map((u: any) => ({
+      ...u,
+      createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
+      lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt) : undefined,
+      suspendedAt: u.suspendedAt ? new Date(u.suspendedAt) : undefined,
+    }));
   } catch (error) {
-    console.error('Error loading users file:', error);
+    console.error('Error loading users from KV:', error);
+    return defaultUsers;
   }
+}
 
-  // Return defaults if file doesn't exist or has errors
+async function saveUsers(kv: KVNamespace, users: User[]): Promise<void> {
+  try {
+    await kv.put(KV_KEYS.USERS, JSON.stringify(users));
+  } catch (error) {
+    console.error('Error saving users to KV:', error);
+  }
+}
+
+async function getPasswords(kv: KVNamespace): Promise<Record<string, string>> {
+  try {
+    const data = await kv.get(KV_KEYS.PASSWORDS, { type: 'json' });
+    if (!data) {
+      await kv.put(KV_KEYS.PASSWORDS, JSON.stringify(defaultPasswords));
+      return defaultPasswords;
+    }
+    return data;
+  } catch (error) {
+    console.error('Error loading passwords from KV:', error);
+    return defaultPasswords;
+  }
+}
+
+async function savePasswords(kv: KVNamespace, passwords: Record<string, string>): Promise<void> {
+  try {
+    await kv.put(KV_KEYS.PASSWORDS, JSON.stringify(passwords));
+  } catch (error) {
+    console.error('Error saving passwords to KV:', error);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Helper Functions
+// -----------------------------------------------------------------------------
+
+function toSessionUser(user: User): SessionUser {
   return {
-    users: defaultUsers,
-    passwords: defaultPasswords,
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    status: user.status,
+    avatarUrl: user.avatarUrl,
   };
 }
-
-/**
- * Save users to file
- */
-function saveUsers(): void {
-  try {
-    // Ensure data directory exists
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    const data: StoredData = {
-      users: mockUsers,
-      passwords: mockPasswords,
-    };
-
-    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving users file:', error);
-  }
-}
-
-// Initialize from file
-const initialData = loadUsers();
-let mockUsers: User[] = initialData.users;
-let mockPasswords: Record<string, string> = initialData.passwords;
 
 // -----------------------------------------------------------------------------
 // Authentication Functions
 // -----------------------------------------------------------------------------
 
-/**
- * Register a new user
- */
 export async function registerUser(
+  kv: KVNamespace,
   email: string,
   password: string,
   displayName: string
 ): Promise<{ success: boolean; user?: SessionUser; error?: string }> {
-  // Check if email already exists
-  const existingUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const users = await getUsers(kv);
+  const passwords = await getPasswords(kv);
+
+  const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (existingUser) {
     return { success: false, error: 'Email already registered' };
   }
 
-  // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return { success: false, error: 'Invalid email format' };
   }
 
-  // Validate password strength
   if (password.length < 8) {
     return { success: false, error: 'Password must be at least 8 characters' };
   }
 
-  // Create new user
   const newUser: User = {
     id: `user-${Date.now()}`,
     email: email.toLowerCase(),
@@ -199,12 +201,11 @@ export async function registerUser(
     authProvider: 'basic',
   };
 
-  // Store user and password
-  mockUsers.push(newUser);
-  mockPasswords[email.toLowerCase()] = password; // In production: hash with bcrypt
+  users.push(newUser);
+  passwords[email.toLowerCase()] = password;
 
-  // Persist to file
-  saveUsers();
+  await saveUsers(kv, users);
+  await savePasswords(kv, passwords);
 
   return {
     success: true,
@@ -212,31 +213,25 @@ export async function registerUser(
   };
 }
 
-/**
- * Login with email and password
- */
 export async function loginWithCredentials(
+  kv: KVNamespace,
   email: string,
   password: string
 ): Promise<{ success: boolean; user?: SessionUser; error?: string }> {
-  // Reload users from file to get latest data
-  const freshData = loadUsers();
-  mockUsers = freshData.users;
-  mockPasswords = freshData.passwords;
+  const users = await getUsers(kv);
+  const passwords = await getPasswords(kv);
 
-  const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
   if (!user) {
     return { success: false, error: 'Invalid email or password' };
   }
 
-  // Check password (in production: use bcrypt.compare)
-  const storedPassword = mockPasswords[email.toLowerCase()];
+  const storedPassword = passwords[email.toLowerCase()];
   if (storedPassword !== password) {
     return { success: false, error: 'Invalid email or password' };
   }
 
-  // Check if user is suspended or banned
   if (user.status === 'suspended') {
     return {
       success: false,
@@ -248,9 +243,8 @@ export async function loginWithCredentials(
     return { success: false, error: 'Account has been banned' };
   }
 
-  // Update last login
   user.lastLoginAt = new Date();
-  saveUsers();
+  await saveUsers(kv, users);
 
   return {
     success: true,
@@ -258,28 +252,12 @@ export async function loginWithCredentials(
   };
 }
 
-/**
- * Convert full User to SessionUser (for JWT/session storage)
- */
-function toSessionUser(user: User): SessionUser {
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    role: user.role,
-    status: user.status,
-    avatarUrl: user.avatarUrl,
-  };
-}
-
 // -----------------------------------------------------------------------------
 // User Management Functions (Admin)
 // -----------------------------------------------------------------------------
 
-/**
- * Get all users (admin only)
- */
 export async function getAllUsers(
+  kv: KVNamespace,
   options?: {
     page?: number;
     limit?: number;
@@ -288,13 +266,9 @@ export async function getAllUsers(
     status?: UserStatus;
   }
 ): Promise<{ users: User[]; total: number }> {
-  // Reload from file to get latest
-  const freshData = loadUsers();
-  mockUsers = freshData.users;
+  const users = await getUsers(kv);
+  let filteredUsers = [...users];
 
-  let filteredUsers = [...mockUsers];
-
-  // Apply filters
   if (options?.search) {
     const search = options.search.toLowerCase();
     filteredUsers = filteredUsers.filter(u =>
@@ -311,7 +285,6 @@ export async function getAllUsers(
     filteredUsers = filteredUsers.filter(u => u.status === options.status);
   }
 
-  // Pagination
   const page = options?.page || 1;
   const limit = options?.limit || 20;
   const start = (page - 1) * limit;
@@ -323,52 +296,46 @@ export async function getAllUsers(
   };
 }
 
-/**
- * Get a single user by ID
- */
-export async function getUserById(userId: string): Promise<User | null> {
-  return mockUsers.find(u => u.id === userId) || null;
+export async function getUserById(kv: KVNamespace, userId: string): Promise<User | null> {
+  const users = await getUsers(kv);
+  return users.find(u => u.id === userId) || null;
 }
 
-/**
- * Update user details
- */
 export async function updateUser(
+  kv: KVNamespace,
   userId: string,
   updates: Partial<Pick<User, 'displayName' | 'email' | 'role' | 'status'>>
 ): Promise<{ success: boolean; user?: User; error?: string }> {
-  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  const users = await getUsers(kv);
+  const userIndex = users.findIndex(u => u.id === userId);
 
   if (userIndex === -1) {
     return { success: false, error: 'User not found' };
   }
 
-  // Apply updates
-  mockUsers[userIndex] = {
-    ...mockUsers[userIndex],
+  users[userIndex] = {
+    ...users[userIndex],
     ...updates,
   };
 
-  saveUsers();
+  await saveUsers(kv, users);
 
-  return { success: true, user: mockUsers[userIndex] };
+  return { success: true, user: users[userIndex] };
 }
 
-/**
- * Suspend a user
- */
 export async function suspendUser(
+  kv: KVNamespace,
   userId: string,
   reason: string,
   adminId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const user = mockUsers.find(u => u.id === userId);
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
 
   if (!user) {
     return { success: false, error: 'User not found' };
   }
 
-  // Can't suspend admins or superadmins (unless you're superadmin)
   if (user.role === 'superadmin') {
     return { success: false, error: 'Cannot suspend superadmin' };
   }
@@ -378,16 +345,17 @@ export async function suspendUser(
   user.suspendedReason = reason;
   user.suspendedBy = adminId;
 
-  saveUsers();
+  await saveUsers(kv, users);
 
   return { success: true };
 }
 
-/**
- * Unsuspend a user
- */
-export async function unsuspendUser(userId: string): Promise<{ success: boolean; error?: string }> {
-  const user = mockUsers.find(u => u.id === userId);
+export async function unsuspendUser(
+  kv: KVNamespace,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
 
   if (!user) {
     return { success: false, error: 'User not found' };
@@ -398,20 +366,19 @@ export async function unsuspendUser(userId: string): Promise<{ success: boolean;
   user.suspendedReason = undefined;
   user.suspendedBy = undefined;
 
-  saveUsers();
+  await saveUsers(kv, users);
 
   return { success: true };
 }
 
-/**
- * Ban a user (permanent)
- */
 export async function banUser(
+  kv: KVNamespace,
   userId: string,
   reason: string,
   adminId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const user = mockUsers.find(u => u.id === userId);
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
 
   if (!user) {
     return { success: false, error: 'User not found' };
@@ -426,46 +393,47 @@ export async function banUser(
   user.suspendedReason = reason;
   user.suspendedBy = adminId;
 
-  saveUsers();
+  await saveUsers(kv, users);
 
   return { success: true };
 }
 
-/**
- * Delete a user
- */
-export async function deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
-  const userIndex = mockUsers.findIndex(u => u.id === userId);
+export async function deleteUser(
+  kv: KVNamespace,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getUsers(kv);
+  const passwords = await getPasswords(kv);
+  const userIndex = users.findIndex(u => u.id === userId);
 
   if (userIndex === -1) {
     return { success: false, error: 'User not found' };
   }
 
-  const user = mockUsers[userIndex];
+  const user = users[userIndex];
 
   if (user.role === 'superadmin') {
     return { success: false, error: 'Cannot delete superadmin' };
   }
 
-  // Remove user
-  mockUsers.splice(userIndex, 1);
-  delete mockPasswords[user.email.toLowerCase()];
+  users.splice(userIndex, 1);
+  delete passwords[user.email.toLowerCase()];
 
-  saveUsers();
+  await saveUsers(kv, users);
+  await savePasswords(kv, passwords);
 
   return { success: true };
 }
 
-/**
- * Change user role
- */
 export async function changeUserRole(
+  kv: KVNamespace,
   userId: string,
   newRole: UserRole,
   adminId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const user = mockUsers.find(u => u.id === userId);
-  const admin = mockUsers.find(u => u.id === adminId);
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
+  const admin = users.find(u => u.id === adminId);
 
   if (!user) {
     return { success: false, error: 'User not found' };
@@ -475,24 +443,21 @@ export async function changeUserRole(
     return { success: false, error: 'Admin not found' };
   }
 
-  // Only superadmin can promote to admin
   if (newRole === 'admin' && admin.role !== 'superadmin') {
     return { success: false, error: 'Only superadmin can promote to admin' };
   }
 
-  // Can't change superadmin role
   if (user.role === 'superadmin') {
     return { success: false, error: 'Cannot change superadmin role' };
   }
 
-  // Can't promote to superadmin
   if (newRole === 'superadmin') {
     return { success: false, error: 'Cannot promote to superadmin' };
   }
 
   user.role = newRole;
 
-  saveUsers();
+  await saveUsers(kv, users);
 
   return { success: true };
 }
@@ -501,35 +466,31 @@ export async function changeUserRole(
 // Leaderboard Functions
 // -----------------------------------------------------------------------------
 
-/**
- * Get leaderboard data
- */
 export async function getLeaderboard(
+  kv: KVNamespace,
   options?: {
     limit?: number;
     timeframe?: 'all' | 'weekly' | 'daily';
   }
 ): Promise<User[]> {
-  let users = mockUsers
+  const users = await getUsers(kv);
+  let leaderboard = users
     .filter(u => u.status === 'active' && u.role === 'player')
     .sort((a, b) => b.totalScore - a.totalScore);
 
-  // TODO: Add timeframe filtering when we have attempt timestamps
-
   const limit = options?.limit || 100;
-  return users.slice(0, limit);
+  return leaderboard.slice(0, limit);
 }
 
-/**
- * Update user score after completing a level
- */
 export async function updateUserScore(
+  kv: KVNamespace,
   userId: string,
   pointsEarned: number,
   levelCompleted: number,
   timeSpent: number
 ): Promise<void> {
-  const user = mockUsers.find(u => u.id === userId);
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
   if (!user) return;
 
   user.totalScore += pointsEarned;
@@ -543,5 +504,5 @@ export async function updateUserScore(
     user.bestTime = timeSpent;
   }
 
-  saveUsers();
+  await saveUsers(kv, users);
 }

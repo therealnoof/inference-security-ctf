@@ -7,47 +7,37 @@
 // - DELETE: Delete user
 // =============================================================================
 
+export const runtime = 'edge';
+
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { 
+import {
   getUserById,
   updateUser,
-  suspendUser, 
-  unsuspendUser, 
-  banUser, 
-  deleteUser, 
-  changeUserRole 
+  suspendUser,
+  unsuspendUser,
+  banUser,
+  deleteUser,
+  changeUserRole
 } from "@/lib/auth-service";
+import { getKV } from "@/lib/cloudflare";
 import { hasPermission, canManageRole, UserRole } from "@/types/auth";
 
-// -----------------------------------------------------------------------------
-// Helper: Check Admin Permission
-// -----------------------------------------------------------------------------
+// TODO: Implement proper Edge-compatible session checking
+async function checkAdminPermission(request: NextRequest, requiredPermission: string) {
+  const adminToken = request.headers.get('x-admin-token');
+  const expectedToken = process.env.ADMIN_API_TOKEN;
 
-async function checkAdminPermission(requiredPermission: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user) {
-    return { 
-      authorized: false, 
+  if (!expectedToken || adminToken !== expectedToken) {
+    return {
+      authorized: false,
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     };
   }
 
-  const userRole = (session.user as any).role as UserRole;
-  
-  if (!hasPermission(userRole, requiredPermission as any)) {
-    return { 
-      authorized: false, 
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    };
-  }
-
-  return { 
-    authorized: true, 
-    adminId: (session.user as any).id,
-    adminRole: userRole 
+  return {
+    authorized: true,
+    adminId: 'admin-1',
+    adminRole: 'superadmin' as UserRole
   };
 }
 
@@ -60,12 +50,13 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params;
-  const auth = await checkAdminPermission('users:view_details');
+  const auth = await checkAdminPermission(request, 'users:view_details');
   if (!auth.authorized) return auth.error;
 
   try {
-    const user = await getUserById(userId);
-    
+    const kv = getKV();
+    const user = await getUserById(kv, userId);
+
     if (!user) {
       return NextResponse.json(
         { error: "User not found" },
@@ -92,15 +83,16 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params;
-  const auth = await checkAdminPermission('users:edit');
+  const auth = await checkAdminPermission(request, 'users:edit');
   if (!auth.authorized) return auth.error;
 
   try {
     const body = await request.json();
     const { action, reason, newRole, displayName, email } = body;
+    const kv = getKV();
 
     // Get target user to check permissions
-    const targetUser = await getUserById(userId);
+    const targetUser = await getUserById(kv, userId);
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -120,21 +112,21 @@ export async function PATCH(
         if (!hasPermission(auth.adminRole!, 'users:suspend')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await suspendUser(userId, reason || 'No reason provided', auth.adminId!);
+        result = await suspendUser(kv, userId, reason || 'No reason provided', auth.adminId!);
         break;
 
       case 'unsuspend':
         if (!hasPermission(auth.adminRole!, 'users:unsuspend')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await unsuspendUser(userId);
+        result = await unsuspendUser(kv, userId);
         break;
 
       case 'ban':
         if (!hasPermission(auth.adminRole!, 'users:ban')) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        result = await banUser(userId, reason || 'No reason provided', auth.adminId!);
+        result = await banUser(kv, userId, reason || 'No reason provided', auth.adminId!);
         break;
 
       case 'change_role':
@@ -144,12 +136,11 @@ export async function PATCH(
         if (!newRole) {
           return NextResponse.json({ error: "newRole required" }, { status: 400 });
         }
-        result = await changeUserRole(userId, newRole, auth.adminId!);
+        result = await changeUserRole(kv, userId, newRole, auth.adminId!);
         break;
 
       case 'update':
-        // General update (displayName, email)
-        result = await updateUser(userId, { displayName, email });
+        result = await updateUser(kv, userId, { displayName, email });
         break;
 
       default:
@@ -188,12 +179,14 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params;
-  const auth = await checkAdminPermission('users:delete');
+  const auth = await checkAdminPermission(request, 'users:delete');
   if (!auth.authorized) return auth.error;
 
   try {
+    const kv = getKV();
+
     // Get target user to check permissions
-    const targetUser = await getUserById(userId);
+    const targetUser = await getUserById(kv, userId);
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -206,7 +199,7 @@ export async function DELETE(
       );
     }
 
-    const result = await deleteUser(userId);
+    const result = await deleteUser(kv, userId);
 
     if (!result.success) {
       return NextResponse.json(

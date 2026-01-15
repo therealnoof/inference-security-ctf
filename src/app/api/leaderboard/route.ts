@@ -4,8 +4,11 @@
 // Public endpoint to fetch leaderboard data with optional time filtering.
 // =============================================================================
 
+export const runtime = 'edge';
+
 import { NextRequest, NextResponse } from "next/server";
 import { getLeaderboard } from "@/lib/auth-service";
+import { getKV } from "@/lib/cloudflare";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,20 +16,20 @@ export async function GET(request: NextRequest) {
   const timeframe = searchParams.get('timeframe') as 'all' | 'weekly' | 'daily' || 'all';
 
   try {
-    const leaderboard = await getLeaderboard({ limit, timeframe });
+    const kv = getKV();
+    const leaderboard = await getLeaderboard(kv, { limit, timeframe });
 
     // Map to leaderboard format
     const data = leaderboard.map((user, index) => ({
       rank: index + 1,
-      id: user.id,
+      visibleId: user.id.slice(-8),
       displayName: user.displayName,
-      score: user.totalScore,
+      totalScore: user.totalScore,
       levelsCompleted: user.levelsCompleted,
       bestTime: user.bestTime,
-      avatarUrl: user.avatarUrl,
     }));
 
-    return NextResponse.json({ leaderboard: data });
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     return NextResponse.json(
