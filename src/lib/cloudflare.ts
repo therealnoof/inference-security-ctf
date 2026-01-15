@@ -17,6 +17,14 @@ export interface KVNamespace {
 // Cloudflare environment bindings
 export interface CloudflareEnv {
   CTF_KV: KVNamespace;
+  // Auth0 environment variables
+  AUTH0_CLIENT_ID?: string;
+  AUTH0_CLIENT_SECRET?: string;
+  AUTH0_ISSUER?: string;
+  NEXTAUTH_URL?: string;
+  NEXT_PUBLIC_AUTH_PROVIDER?: string;
+  // Allow any other env vars
+  [key: string]: any;
 }
 
 // -----------------------------------------------------------------------------
@@ -69,4 +77,21 @@ export function getKV(): KVNamespace {
     }
     throw error;
   }
+}
+
+/**
+ * Get environment variable from Cloudflare context or process.env.
+ * Cloudflare Pages exposes env vars through request context, not process.env.
+ */
+export function getEnv(key: string): string {
+  try {
+    const ctx = getRequestContext();
+    const value = (ctx.env as CloudflareEnv)[key];
+    if (value !== undefined) {
+      return String(value);
+    }
+  } catch {
+    // Not in Cloudflare context, fall through to process.env
+  }
+  return process.env[key] || '';
 }

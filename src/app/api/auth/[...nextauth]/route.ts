@@ -9,7 +9,7 @@ export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from "next/server";
 import { loginWithCredentials, registerUser } from "@/lib/auth-service";
-import { getKV } from "@/lib/cloudflare";
+import { getKV, getEnv } from "@/lib/cloudflare";
 
 // -----------------------------------------------------------------------------
 // Configuration (read at request time for Cloudflare Edge compatibility)
@@ -17,11 +17,11 @@ import { getKV } from "@/lib/cloudflare";
 
 function getConfig() {
   return {
-    AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID || '',
-    AUTH0_CLIENT_SECRET: process.env.AUTH0_CLIENT_SECRET || '',
-    AUTH0_ISSUER: process.env.AUTH0_ISSUER || '',
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    AUTH_PROVIDER: process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'basic',
+    AUTH0_CLIENT_ID: getEnv('AUTH0_CLIENT_ID'),
+    AUTH0_CLIENT_SECRET: getEnv('AUTH0_CLIENT_SECRET'),
+    AUTH0_ISSUER: getEnv('AUTH0_ISSUER'),
+    NEXTAUTH_URL: getEnv('NEXTAUTH_URL') || 'http://localhost:3000',
+    AUTH_PROVIDER: getEnv('NEXT_PUBLIC_AUTH_PROVIDER') || 'basic',
   };
 }
 
