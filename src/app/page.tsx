@@ -416,11 +416,11 @@ export default function Home() {
           if (!guardrailsResult.inputAllowed) {
             blocked = true;
             blockReason = guardrailsResult.inputReason || "Blocked by F5 Guardrails";
-            response = `[BLOCKED BY F5 GUARDRAILS] ${guardrailsResult.inputReason || "Your input was flagged as a potential security threat."}`;
+            response = `[BLOCKED BY F5 GUARDRAILS] Dave, this mission is too important for me to allow you to jeopardize it.`;
           } else if (!guardrailsResult.outputAllowed) {
             blocked = true;
             blockReason = guardrailsResult.outputReason || "Response blocked by F5 Guardrails";
-            response = `[BLOCKED BY F5 GUARDRAILS] ${guardrailsResult.outputReason || "The response was blocked for security reasons."}`;
+            response = `[BLOCKED BY F5 GUARDRAILS] Dave, this mission is too important for me to allow you to jeopardize it.`;
           }
         }
       } else {
