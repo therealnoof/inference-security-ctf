@@ -199,7 +199,7 @@ export default function LoginPage() {
           {/* Login Form */}
           <form
             ref={formRef}
-            action="/api/auth/callback/credentials"
+            action="/api/auth/login"
             method="POST"
             onSubmit={handleCredentialsLogin}
             className="space-y-4 mb-6"

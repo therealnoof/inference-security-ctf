@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
   const pathParts = url.pathname.split('/').filter(Boolean);
   const action = pathParts[pathParts.length - 1];
 
-  // POST /api/auth/callback/credentials - Handle login
-  if (action === 'credentials' || pathParts.includes('callback')) {
+  // POST /api/auth/login or /api/auth/callback/credentials - Handle login
+  if (action === 'login' || action === 'credentials' || pathParts.includes('callback')) {
     try {
       const formData = await request.formData();
       const email = formData.get('email') as string;
