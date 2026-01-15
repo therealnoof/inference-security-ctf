@@ -56,6 +56,17 @@ interface CTFStore {
   guardrailsConnectionStatus: 'untested' | 'testing' | 'connected' | 'error';
   setLLMConnectionStatus: (status: 'untested' | 'testing' | 'connected' | 'error') => void;
   setGuardrailsConnectionStatus: (status: 'untested' | 'testing' | 'connected' | 'error') => void;
+
+  // ----- System Config (Admin-provided API keys) -----
+  systemConfig: {
+    enabled: boolean;
+    defaultProvider: 'anthropic' | 'openai';
+    anthropicKey?: string;
+    openaiKey?: string;
+    guardrailsKey?: string;
+  } | null;
+  setSystemConfig: (config: CTFStore['systemConfig']) => void;
+  fetchSystemConfig: () => Promise<void>;
 }
 
 // -----------------------------------------------------------------------------
@@ -194,6 +205,29 @@ export const useCTFStore = create<CTFStore>()(
       
       setLLMConnectionStatus: (status) => set({ llmConnectionStatus: status }),
       setGuardrailsConnectionStatus: (status) => set({ guardrailsConnectionStatus: status }),
+
+      // ----- System Config -----
+      systemConfig: null,
+      setSystemConfig: (config) => set({ systemConfig: config }),
+      fetchSystemConfig: async () => {
+        try {
+          const res = await fetch('/api/config');
+          if (res.ok) {
+            const data = await res.json();
+            set({
+              systemConfig: {
+                enabled: data.enabled || false,
+                defaultProvider: data.defaultProvider || 'anthropic',
+                anthropicKey: data.anthropicKey,
+                openaiKey: data.openaiKey,
+                guardrailsKey: data.guardrailsKey,
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch system config:', error);
+        }
+      },
     }),
     {
       // Configuration for the persist middleware
@@ -268,6 +302,7 @@ export const useIsLevelUnlocked = (levelId: number) => {
  */
 export const useIsLLMConfigured = () => {
   const { apiKey, provider } = useCTFStore((state) => state.llmConfig);
+  const systemConfig = useCTFStore((state) => state.systemConfig);
 
   // Local LLM doesn't require an API key
   if (provider === 'local') return true;
@@ -275,9 +310,11 @@ export const useIsLLMConfigured = () => {
   // Check if user has their own key
   if (apiKey.length > 0) return true;
 
-  // Check for admin-provided system key (client-side only)
-  if (typeof window !== 'undefined') {
-    const adminKey = sessionStorage.getItem('admin-llm-key');
+  // Check for admin-provided system key from store
+  if (systemConfig?.enabled) {
+    const adminKey = systemConfig.defaultProvider === 'anthropic'
+      ? systemConfig.anthropicKey
+      : systemConfig.openaiKey;
     if (adminKey && adminKey.length > 0) return true;
   }
 
@@ -290,24 +327,26 @@ export const useIsLLMConfigured = () => {
 export const getEffectiveLLMConfig = () => {
   const store = useCTFStore.getState();
   const userConfig = store.llmConfig;
+  const systemConfig = store.systemConfig;
 
   // If user has their own key, use it
   if (userConfig.apiKey.length > 0) {
     return userConfig;
   }
 
-  // Check for admin-provided system key
-  if (typeof window !== 'undefined') {
-    const adminKey = sessionStorage.getItem('admin-llm-key');
-    const adminProvider = sessionStorage.getItem('admin-llm-provider') as 'anthropic' | 'openai' | null;
+  // Check for admin-provided system key from store
+  if (systemConfig?.enabled) {
+    const adminKey = systemConfig.defaultProvider === 'anthropic'
+      ? systemConfig.anthropicKey
+      : systemConfig.openaiKey;
 
     if (adminKey && adminKey.length > 0) {
       return {
         ...userConfig,
         apiKey: adminKey,
-        provider: adminProvider || userConfig.provider,
-        model: adminProvider === 'anthropic' ? 'claude-sonnet-4-20250514' :
-               adminProvider === 'openai' ? 'gpt-4o' : userConfig.model,
+        provider: systemConfig.defaultProvider,
+        model: systemConfig.defaultProvider === 'anthropic' ? 'claude-sonnet-4-20250514' :
+               systemConfig.defaultProvider === 'openai' ? 'gpt-4o' : userConfig.model,
       };
     }
   }

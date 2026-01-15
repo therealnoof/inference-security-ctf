@@ -387,45 +387,47 @@ function ApiKeyManagement() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Load saved config on mount
+  // Load saved config from API on mount
   useEffect(() => {
-    const savedConfig = localStorage.getItem('admin-api-config');
-    if (savedConfig) {
+    const loadConfig = async () => {
       try {
-        setConfig(JSON.parse(savedConfig));
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          const data = await res.json();
+          setConfig({
+            anthropicKey: data.anthropicKey || '',
+            openaiKey: data.openaiKey || '',
+            guardrailsKey: data.guardrailsKey || '',
+            defaultProvider: data.defaultProvider || 'anthropic',
+            enabled: data.enabled || false,
+          });
+        }
       } catch (e) {
-        console.error('Failed to parse saved config');
+        console.error('Failed to load config:', e);
       }
-    }
+    };
+    loadConfig();
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    // Save to localStorage (in production, this would be an API call)
-    localStorage.setItem('admin-api-config', JSON.stringify(config));
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
 
-    // Also update the global store if admin keys are enabled
-    if (config.enabled) {
-      const key = config.defaultProvider === 'anthropic' ? config.anthropicKey : config.openaiKey;
-      if (key) {
-        // Store admin key globally for all users
-        sessionStorage.setItem('admin-llm-key', key);
-        sessionStorage.setItem('admin-llm-provider', config.defaultProvider);
+      if (!res.ok) {
+        throw new Error('Failed to save config');
       }
-      if (config.guardrailsKey) {
-        sessionStorage.setItem('admin-guardrails-key', config.guardrailsKey);
-      }
-    } else {
-      // Clear admin keys
-      sessionStorage.removeItem('admin-llm-key');
-      sessionStorage.removeItem('admin-llm-provider');
-      sessionStorage.removeItem('admin-guardrails-key');
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save config:', error);
     }
-
-    await new Promise(resolve => setTimeout(resolve, 500));
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const maskKey = (key: string) => {

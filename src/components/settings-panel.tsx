@@ -73,13 +73,21 @@ export function SettingsPanel() {
   const [adminKeysEnabled, setAdminKeysEnabled] = useState(false);
   const [adminProvider, setAdminProvider] = useState<string>('');
 
-  // Check for admin keys on mount
+  // Fetch system config from API
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const adminKey = sessionStorage.getItem('admin-llm-key');
-      const provider = sessionStorage.getItem('admin-llm-provider');
-      setAdminKeysEnabled(!!adminKey);
-      setAdminProvider(provider || '');
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        setAdminKeysEnabled(config.enabled && (config.hasAnthropicKey || config.hasOpenaiKey));
+        setAdminProvider(config.defaultProvider || '');
+      } catch (error) {
+        console.error('Failed to fetch system config:', error);
+      }
+    };
+
+    if (isSettingsOpen) {
+      fetchConfig();
     }
   }, [isSettingsOpen]);
 

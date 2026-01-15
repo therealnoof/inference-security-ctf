@@ -13,6 +13,17 @@ import React, { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { useCTFStore } from "@/lib/store";
 
+// Fetch system config on app load
+function SystemConfigLoader() {
+  const fetchSystemConfig = useCTFStore((state) => state.fetchSystemConfig);
+
+  useEffect(() => {
+    fetchSystemConfig();
+  }, [fetchSystemConfig]);
+
+  return null;
+}
+
 /**
  * Providers Component
  * Wraps children with necessary context providers
@@ -55,6 +66,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
+      <SystemConfigLoader />
       {children}
     </AuthProvider>
   );
