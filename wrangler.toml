@@ -11,4 +11,4 @@ pages_build_output_dir = ".vercel/output/static"
 # 3. Copy the ID and add it below (or set via dashboard bindings)
 [[kv_namespaces]]
 binding = "CTF_KV"
-id = "YOUR_KV_NAMESPACE_ID"
+id = "bf37b4f02350469f901ab117906f82b9"
