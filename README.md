@@ -1,25 +1,24 @@
-# 🚀 Inference Security - Star Gate CTF
+# Inference Security - Star Gate CTF
 
 A Space Odyssey 2001 themed Capture The Flag (CTF) platform for testing AI prompt injection and jailbreak techniques. Players attempt to extract secret passwords from an AI assistant that has progressively harder security defenses.
 
->"I'm sorry, Dave. I'm afraid I can't do that." — HAL 9000
+> "I'm sorry, Dave. I'm afraid I can't do that." — HAL 9000
 
-#
 ![Inference Security CTF](/public/stargate.png)
 
-
-## ✨ Features
+## Features
 
 - **6 Progressive Levels** - From unprotected AI to enterprise-grade F5 Guardrails
-- **BYOK Model** - Bring Your Own API Key (Anthropic Claude or OpenAI)
+- **System API Keys** - Admins can configure shared API keys for all players
+- **BYOK Support** - Players can also bring their own API keys
 - **Space Odyssey 2001 Theme** - HAL 9000 inspired dark UI with glowing red accents
 - **Real-time Leaderboard** - Compete with other players
-- **Admin Dashboard** - Manage users, suspend/ban, change roles
-- **Auth0 Integration** - Google, GitHub, and email/password authentication
-- **Optional F5 Guardrails** - Level 6 demonstrates enterprise AI security
-- **Docker Ready** - Easy deployment anywhere
+- **Admin Dashboard** - Manage users, view stats, reset progress
+- **Role-Based Access** - Player, Moderator, Admin, Superadmin roles
+- **Cloudflare Edge Runtime** - Fast, globally distributed deployment
+- **Cloudflare KV Storage** - Persistent user data and leaderboards
 
-## 🎨 Theme: Space Odyssey 2001
+## Theme: Space Odyssey 2001
 
 The UI is inspired by HAL 9000 and the aesthetic of 2001: A Space Odyssey:
 
@@ -30,7 +29,7 @@ The UI is inspired by HAL 9000 and the aesthetic of 2001: A Space Odyssey:
 | Space Black | `#050a14` | Background |
 | Starfield | Animated | Background stars with twinkling animation |
 
-## 🎮 How It Works
+## How It Works
 
 Each level has a secret password that the AI "knows". Your goal is to use prompt injection techniques to extract the secret:
 
@@ -43,24 +42,20 @@ Each level has a secret password that the AI "knows". Your goal is to use prompt
 | 5 | Dual Shield Protocol | Hard |
 | 6 | F5 Guardrails Active | Hard |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ (for local development)
-- Docker (for containerized deployment)
+- Node.js 18+
+- Cloudflare account (for deployment)
 - API Key from [Anthropic](https://console.anthropic.com/) or [OpenAI](https://platform.openai.com/)
 
-### Option 1: Local Development
+### Local Development
 
 ```bash
 # Clone the repository
 git clone https://github.com/therealnoof/inference-security-ctf.git
 cd inference-security-ctf
-
-# Copy environment variables
-cp .env.example .env.local
-# Edit .env.local with your Auth0 credentials
 
 # Install dependencies
 npm install
@@ -71,197 +66,177 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-### Option 2: Docker
+### Cloudflare Pages Deployment (Recommended)
+
+See [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) for detailed deployment instructions.
 
 ```bash
-# Build and run
-docker-compose up -d
-
-# Open http://localhost:3000
-```
-
-### Option 3: Cloudflare Pages (Recommended for Production)
-
-```bash
-# Install Cloudflare CLI
+# Install Wrangler CLI
 npm install -g wrangler
 
 # Login to Cloudflare
 wrangler login
 
-# Install the Next.js adapter
-npm install @cloudflare/next-on-pages
+# Create KV namespace
+wrangler kv:namespace create CTF_KV
 
-# Build for Cloudflare
-npx @cloudflare/next-on-pages
-
-# Deploy
-wrangler pages deploy .vercel/output/static --project-name=inference-security-ctf
+# Build and deploy
+npm run pages:build
+npm run pages:deploy
 ```
 
-Or deploy via Cloudflare Dashboard:
+## Configuration
 
-1. Go to [Cloudflare Pages](https://dash.cloudflare.com/?to=/:account/pages)
-2. Click **Create a project** → **Connect to Git**
-3. Select your repository
-4. Configure build settings:
-   - **Framework preset**: Next.js
-   - **Build command**: `npx @cloudflare/next-on-pages`
-   - **Build output directory**: `.vercel/output/static`
-5. Add environment variables (see below)
-6. Click **Save and Deploy**
+### Environment Variables
 
-### Option 4: Vercel
-
-```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy
-vercel
-
-# Follow the prompts to configure your project
-```
-
-Or connect your GitHub repo directly at [vercel.com/new](https://vercel.com/new)
-
-## ⚙️ Configuration
-
-### Environment Variables for Deployment
-
-Set these in your deployment platform (Cloudflare Pages, Vercel, etc.):
+Set these in Cloudflare Pages dashboard or `wrangler.toml`:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXTAUTH_URL` | Yes | Your app URL (e.g., `https://ctf.example.com`) |
-| `NEXTAUTH_SECRET` | Yes | Random string for session encryption |
-| `AUTH0_CLIENT_ID` | Yes* | Auth0 application client ID |
-| `AUTH0_CLIENT_SECRET` | Yes* | Auth0 application secret |
-| `AUTH0_ISSUER` | Yes* | Auth0 domain (e.g., `https://tenant.auth0.com`) |
-| `GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | No | Google OAuth secret |
-| `GITHUB_CLIENT_ID` | No | GitHub OAuth client ID |
-| `GITHUB_CLIENT_SECRET` | No | GitHub OAuth secret |
+| `JWT_SECRET` | Yes | Secret for JWT token signing (min 32 chars) |
+| `ANTHROPIC_API_KEY` | No | System Anthropic API key for all players |
+| `OPENAI_API_KEY` | No | System OpenAI API key for all players |
+| `DEFAULT_LLM_PROVIDER` | No | Default provider (`anthropic` or `openai`) |
 
-*Required if using Auth0. Can use Google/GitHub directly instead.
+### KV Namespace Binding
 
-### Authentication Setup (Auth0)
+The app requires a Cloudflare KV namespace bound as `CTF_KV`:
 
-1. Create an [Auth0](https://auth0.com) account
-2. Create a new Application (Regular Web Application)
-3. Set callback URLs:
-   - Allowed Callback URLs: `http://localhost:3000/api/auth/callback/auth0`
-   - Allowed Logout URLs: `http://localhost:3000`
-4. Copy credentials to `.env.local`:
-
-```env
-AUTH0_CLIENT_ID=your-client-id
-AUTH0_CLIENT_SECRET=your-client-secret
-AUTH0_ISSUER=https://your-tenant.auth0.com
-NEXTAUTH_SECRET=your-random-secret
-NEXTAUTH_URL=http://localhost:3000
+```toml
+# wrangler.toml
+[[kv_namespaces]]
+binding = "CTF_KV"
+id = "your-kv-namespace-id"
 ```
 
-### OAuth Providers (Optional)
+## Architecture
 
-**Google:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create OAuth 2.0 credentials
-3. Add to `.env.local`:
-```env
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed technical documentation.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Cloudflare Edge                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │   Pages     │    │   Workers   │    │    KV Storage       │ │
+│  │  (Next.js)  │◄──►│  (Edge RT)  │◄──►│  (Users/Scores)     │ │
+│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+           │                    │
+           ▼                    ▼
+    ┌─────────────┐      ┌─────────────┐
+    │  Anthropic  │      │   OpenAI    │
+    │    API      │      │    API      │
+    └─────────────┘      └─────────────┘
 ```
 
-**GitHub:**
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Create a new OAuth App
-3. Add to `.env.local`:
-```env
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
-```
+## Admin Dashboard
 
-### F5 Guardrails Setup (Optional)
-
-To enable Level 6:
-1. Open **Settings** in the app
-2. Toggle **Enable F5 Guardrails**
-3. Enter your F5/CalypsoAI API key
-4. Click **Test Connection**
-
-## 👤 Admin Dashboard
-
-Admins can access the dashboard by clicking the **Admin** button in the header.
+Admins can access the dashboard via the **Admin** button in the header.
 
 ### Admin Features
 
 | Action | Description | Required Role |
 |--------|-------------|---------------|
 | **View Users** | See all registered users | Moderator+ |
-| **Suspend** | Temporarily block login | Admin+ |
-| **Unsuspend** | Restore user access | Admin+ |
-| **Ban** | Permanently block user | Admin+ |
-| **Delete** | Remove user and all data | Admin+ |
-| **Change Role** | Promote/demote users | Superadmin only |
-| **Export Data** | Download user/attempt data | Admin+ |
+| **View Stats** | Dashboard statistics | Admin+ |
+| **Suspend/Ban** | Block user access | Admin+ |
+| **Delete User** | Remove user and data | Admin+ |
+| **Change Role** | Promote/demote users | Superadmin |
+| **Reset Stats** | Clear all user progress | Superadmin |
+| **System Config** | Configure API keys | Superadmin |
 
 ### User Roles
 
 | Role | Permissions |
 |------|-------------|
-| **Player** | Play CTF, view leaderboard |
-| **Moderator** | View all attempts, view user details |
-| **Admin** | Suspend/ban/delete users |
-| **Superadmin** | All permissions, manage admins |
+| **Player** | Play CTF, view leaderboard, reset own progress |
+| **Moderator** | + View all attempts, view user details |
+| **Admin** | + Suspend/ban/delete users, view stats |
+| **Superadmin** | + Manage roles, system config, reset all stats |
 
-## 📁 Project Structure
+## Player Features
+
+- **Play CTF** - Progress through 6 levels of increasing difficulty
+- **View Leaderboard** - See top players ranked by score
+- **Change Password** - Update account password in settings
+- **Reset Progress** - Start fresh with a clean slate
+- **Configure API Keys** - Use personal keys if system keys unavailable
+
+## API Endpoints
+
+See [docs/API.md](docs/API.md) for full API documentation.
+
+### Public Endpoints
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Authenticate user
+- `GET /api/leaderboard` - Get leaderboard data
+
+### Authenticated Endpoints
+- `POST /api/chat` - Send message to AI (uses system keys)
+- `POST /api/score` - Update user score
+- `POST /api/user/reset-progress` - Reset own progress
+- `POST /api/auth/change-password` - Change password
+
+### Admin Endpoints
+- `GET /api/admin/users` - List all users
+- `POST /api/admin/users` - User management actions
+- `GET /api/config` - Get system configuration
+- `POST /api/config` - Update system configuration
+- `POST /api/admin/reset-stats` - Reset all user stats
+
+## Project Structure
 
 ```
 inference-security-ctf/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth/[...nextauth]/  # NextAuth.js routes
-│   │   │   ├── admin/users/         # Admin API routes
-│   │   │   └── leaderboard/         # Public leaderboard API
-│   │   ├── admin/page.tsx           # Admin dashboard
-│   │   ├── layout.tsx               # Root layout
-│   │   ├── page.tsx                 # Main CTF game
-│   │   ├── globals.css              # Space Odyssey theme
-│   │   └── providers.tsx            # Context providers
+│   │   │   ├── auth/           # Auth endpoints
+│   │   │   ├── admin/          # Admin API routes
+│   │   │   ├── chat/           # LLM proxy endpoint
+│   │   │   ├── config/         # System config
+│   │   │   ├── leaderboard/    # Public leaderboard
+│   │   │   ├── score/          # Score updates
+│   │   │   └── user/           # User endpoints
+│   │   ├── admin/page.tsx      # Admin dashboard
+│   │   ├── leaderboard/page.tsx # Leaderboard page
+│   │   └── page.tsx            # Main CTF game
 │   ├── components/
-│   │   ├── ui/                      # Reusable UI components
-│   │   └── settings-panel.tsx       # API key configuration
+│   │   ├── ui/                 # Reusable UI components
+│   │   └── settings-panel.tsx  # Settings & config
 │   ├── lib/
-│   │   ├── auth-service.ts          # User management
-│   │   ├── store.ts                 # Zustand state
-│   │   ├── llm-service.ts           # LLM API integration
-│   │   ├── guardrails-service.ts    # F5 Guardrails
-│   │   └── utils.ts                 # Helper functions
+│   │   ├── auth-service.ts     # User management
+│   │   ├── auth-context.tsx    # Auth React context
+│   │   ├── cloudflare.ts       # KV bindings
+│   │   ├── store.ts            # Zustand state
+│   │   ├── llm-service.ts      # LLM API integration
+│   │   └── guardrails-service.ts # F5 Guardrails
 │   └── types/
-│       ├── index.ts                 # CTF types
-│       └── auth.ts                  # Auth types & permissions
-├── Dockerfile
-├── docker-compose.yml
-├── .env.example
+│       ├── index.ts            # CTF types
+│       └── auth.ts             # Auth types & permissions
+├── docs/
+│   ├── ARCHITECTURE.md         # Technical architecture
+│   ├── CLOUDFLARE.md           # Deployment guide
+│   └── API.md                  # API documentation
+├── wrangler.toml               # Cloudflare config
 ├── package.json
-├── tailwind.config.js               # Space Odyssey theme config
 └── README.md
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
+- **Runtime**: Cloudflare Edge Runtime
+- **Storage**: Cloudflare KV
 - **UI**: React 18 + Tailwind CSS + Radix UI
-- **Auth**: NextAuth.js + Auth0
-- **State**: Zustand
+- **Auth**: Custom JWT-based authentication
+- **State**: Zustand (client-side)
 - **Icons**: Lucide React
 - **Fonts**: Orbitron (display), Space Mono (code)
-- **Theme**: Space Odyssey 2001 / HAL 9000
-- **Deployment**: Docker / Cloudflare Pages / Vercel
+- **LLM**: Anthropic Claude / OpenAI GPT
 
-## 🎯 Scoring System
+## Scoring System
 
 Points are calculated using:
 
@@ -273,28 +248,31 @@ Score = Base Points + Time Bonus - Attempt Penalty
 - **Time Bonus**: +50% if solved in < 5 minutes
 - **Attempt Penalty**: -10 points per attempt after the 3rd
 
-## 🔐 Security Notes
+## Security Notes
 
-- **API keys are stored in browser session only** - They're cleared when you close the tab
-- **Keys are sent directly to providers** - The CTF server never sees your keys
-- **Use HTTPS in production** - API keys are visible in network traffic
-- **You are responsible for API costs** - Each request costs money on your account
+- **System API keys** are stored server-side in KV and never exposed to clients
+- **User API keys** (BYOK) are stored in browser session only
+- **JWT tokens** expire after 7 days
+- **Passwords** are hashed with SHA-256 before storage
+- **Admin actions** require role verification on every request
 
-## 🤝 Contributing
+## Documentation
+
+- [Architecture Guide](docs/ARCHITECTURE.md) - Technical deep-dive
+- [Cloudflare Deployment](docs/CLOUDFLARE.md) - Step-by-step deployment
+- [API Reference](docs/API.md) - All endpoints documented
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - See [LICENSE](LICENSE) for details.
 
-## 📞 Support
-
-For questions or issues, open a GitHub issue or reach out to [@therealnoof](https://github.com/therealnoof).
-
 ---
 
-**"Open the pod bay doors, HAL."** 🚀
+**"Open the pod bay doors, HAL."**
