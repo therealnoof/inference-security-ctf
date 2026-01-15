@@ -18,7 +18,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 // Metadata for the page (shown in browser tab, SEO)
 export const metadata: Metadata = {
-  title: "LLM Security CTF - AI Jailbreak Challenge",
+  title: "Inference Security CTF - AI Jailbreak Challenge",
   description: "Test your prompt injection skills against progressively harder AI defenses. Can you extract the secrets?",
   keywords: ["CTF", "LLM", "AI Security", "Prompt Injection", "Jailbreak", "F5"],
 };
