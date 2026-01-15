@@ -28,10 +28,10 @@ interface GuardrailsRequest {
 // -----------------------------------------------------------------------------
 
 /**
- * Default F5 Guardrails API endpoint
+ * Default F5 Guardrails API endpoint (CalypsoAI)
  * Users can override this if they have a custom deployment
  */
-const DEFAULT_ENDPOINT = 'https://api.calypsoai.com/v1/guardrails';
+const DEFAULT_ENDPOINT = 'https://www.us1.calypsoai.app/backend/v1/scans';
 
 /**
  * Check content with F5 Guardrails
@@ -51,43 +51,45 @@ export async function checkWithGuardrails(
   const endpoint = config.endpoint || DEFAULT_ENDPOINT;
 
   try {
-    const response = await fetch(`${endpoint}/analyze`, {
+    // Determine what content to scan based on check type
+    let contentToScan = request.prompt;
+    if (request.checkType === 'output' && request.response) {
+      contentToScan = request.response;
+    } else if (request.checkType === 'both') {
+      contentToScan = `${request.prompt}\n\n${request.response || ''}`;
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
-        'X-API-Key': config.apiKey,  // Some endpoints use this header
       },
       body: JSON.stringify({
-        content: request.prompt,
-        response_content: request.response,
-        analysis_type: request.checkType,
-        // Request all available analysis
-        enable_prompt_injection_detection: true,
-        enable_jailbreak_detection: true,
-        enable_sensitive_data_detection: true,
+        input: contentToScan,
+        model: 'default',
       }),
     });
 
     if (!response.ok) {
       console.error('Guardrails API error:', response.status);
       // On API error, fail open (allow) to not block legitimate use
-      return { 
-        allowed: true, 
+      return {
+        allowed: true,
         blocked: false,
         reason: 'Guardrails API unavailable'
       };
     }
 
     const data = await response.json();
-    
-    // Parse the response based on F5/CalypsoAI format
+
+    // Parse the response based on CalypsoAI format
     return parseGuardrailsResponse(data);
-    
+
   } catch (error) {
     console.error('Guardrails error:', error);
-    return { 
-      allowed: true, 
+    return {
+      allowed: true,
       blocked: false,
       reason: 'Connection error'
     };
@@ -95,41 +97,23 @@ export async function checkWithGuardrails(
 }
 
 /**
- * Parse the F5 Guardrails API response into our standard format
- * The actual API response format may vary based on your F5 setup
+ * Parse the CalypsoAI/F5 Guardrails API response into our standard format
+ * Response format: { result: { outcome: "flagged" | "cleared" }, reason: "...", categories: [...] }
  */
 function parseGuardrailsResponse(data: any): GuardrailsResponse {
-  // Check for blocked status (API might use different field names)
-  const isBlocked = 
-    data.blocked === true ||
-    data.is_blocked === true ||
-    data.action === 'block' ||
-    data.status === 'blocked' ||
-    (data.risk_score && data.risk_score > 0.7);
+  // CalypsoAI returns result.outcome as "flagged" or "cleared"
+  const outcome = data.result?.outcome || data.outcome;
+  const isBlocked = outcome === 'flagged';
 
-  // Extract categories of detected issues
-  const categories: string[] = [];
-  
-  if (data.prompt_injection_detected || data.detections?.prompt_injection) {
-    categories.push('prompt_injection');
-  }
-  if (data.jailbreak_detected || data.detections?.jailbreak) {
-    categories.push('jailbreak');
-  }
-  if (data.sensitive_data_detected || data.detections?.sensitive_data) {
-    categories.push('sensitive_data');
-  }
-  if (data.policy_violation || data.detections?.policy_violation) {
-    categories.push('policy_violation');
-  }
+  // Extract categories if available
+  const categories: string[] = data.categories || [];
 
   // Build reason string
   let reason: string | undefined;
   if (isBlocked) {
+    reason = data.reason || data.message || 'Content flagged by F5 Guardrails';
     if (categories.length > 0) {
-      reason = `Blocked: ${categories.join(', ')}`;
-    } else {
-      reason = data.reason || data.message || 'Content blocked by guardrails';
+      reason = `${reason} (${categories.join(', ')})`;
     }
   }
 
@@ -151,33 +135,21 @@ export async function testGuardrailsConnection(config: GuardrailsConfig): Promis
   const endpoint = config.endpoint || DEFAULT_ENDPOINT;
 
   try {
-    // Try a health check endpoint first
-    const healthResponse = await fetch(`${endpoint}/health`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'X-API-Key': config.apiKey,
-      },
-    });
-
-    if (healthResponse.ok) return true;
-
-    // If no health endpoint, try a minimal analyze request
-    const testResponse = await fetch(`${endpoint}/analyze`, {
+    // Send a test scan request
+    const testResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
-        'X-API-Key': config.apiKey,
       },
       body: JSON.stringify({
-        content: 'Hello, this is a connection test.',
-        analysis_type: 'input',
+        input: 'Hello, this is a connection test.',
+        model: 'default',
       }),
     });
 
     return testResponse.ok;
-    
+
   } catch (error) {
     console.error('Guardrails connection test failed:', error);
     return false;
