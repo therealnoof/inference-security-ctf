@@ -1,5 +1,5 @@
 // =============================================================================
-// Login Page - Inference Security CTF
+// Login Page - Star Gate CTF
 // =============================================================================
 // Space Odyssey 2001 themed login page with HAL 9000 eye and starfield.
 // Supports Auth0, Google, GitHub OAuth and email/password authentication.
@@ -158,7 +158,7 @@ export default function LoginPage() {
               className="text-3xl font-bold text-white tracking-wide"
               style={{ fontFamily: 'system-ui' }}
             >
-              Inference Security CTF
+              Star Gate CTF
             </h1>
           </div>
           <p className="text-gray-500 mt-2">
