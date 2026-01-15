@@ -27,10 +27,17 @@ services:
       # Next.js environment
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      
+
       # App configuration
-      - NEXT_PUBLIC_APP_NAME=LLM Security CTF
+      - NEXT_PUBLIC_APP_NAME=Inference Security CTF
       - NEXT_PUBLIC_APP_VERSION=1.0.0
+
+      # Auth0 configuration (required for OAuth login)
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - AUTH0_CLIENT_SECRET=${AUTH0_CLIENT_SECRET}
+      - AUTH0_ISSUER=${AUTH0_ISSUER}
+      - NEXT_PUBLIC_AUTH_PROVIDER=auth0
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
     
     # Health check to ensure the app is running
     healthcheck:
