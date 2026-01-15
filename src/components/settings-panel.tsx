@@ -27,7 +27,9 @@ import {
   Settings,
   Shield,
   Bot,
-  Key
+  Key,
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +67,7 @@ export function SettingsPanel() {
     setLLMConnectionStatus,
     guardrailsConnectionStatus,
     setGuardrailsConnectionStatus,
+    resetProgress,
   } = useCTFStore();
 
   // Get session for user info
@@ -86,6 +89,11 @@ export function SettingsPanel() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordChangeStatus, setPasswordChangeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [passwordChangeError, setPasswordChangeError] = useState('');
+
+  // Reset progress state
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetStatus, setResetStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [resetError, setResetError] = useState('');
 
   // Fetch system config from API
   React.useEffect(() => {
@@ -124,6 +132,37 @@ export function SettingsPanel() {
     setGuardrailsConnectionStatus('testing');
     const success = await testGuardrailsConnection(guardrailsConfig);
     setGuardrailsConnectionStatus(success ? 'connected' : 'error');
+  };
+
+  // Handle reset progress
+  const handleResetProgress = async () => {
+    setResetStatus('loading');
+    setResetError('');
+
+    try {
+      const res = await fetch('/api/user/reset-progress', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setResetStatus('error');
+        setResetError(data.error || 'Failed to reset progress');
+        return;
+      }
+
+      // Reset local store state
+      resetProgress();
+      setResetStatus('success');
+      setShowResetConfirm(false);
+
+      // Reset status after 3 seconds
+      setTimeout(() => setResetStatus('idle'), 3000);
+    } catch (error) {
+      setResetStatus('error');
+      setResetError('Failed to reset progress');
+    }
   };
 
   // Handle password change
@@ -504,6 +543,84 @@ export function SettingsPanel() {
                   'Change Password'
                 )}
               </Button>
+            </section>
+          )}
+
+          {/* Divider */}
+          <div className="border-t" />
+
+          {/* =================================================================
+              Reset Progress Section
+              ================================================================= */}
+          {session?.user && (
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <RotateCcw className="h-4 w-4" />
+                <span>Game Progress</span>
+              </div>
+
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-yellow-500 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="font-medium">Reset Progress</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  This will reset all your game progress including scores, completed levels, and attempt history. This action cannot be undone.
+                </p>
+
+                {resetStatus === 'success' ? (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <Check className="h-4 w-4" />
+                    <span>Progress reset successfully!</span>
+                  </div>
+                ) : showResetConfirm ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-yellow-500 font-medium">
+                      Are you sure you want to reset all your progress?
+                    </p>
+                    {resetError && (
+                      <div className="flex items-center gap-2 text-sm text-red-500">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>{resetError}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleResetProgress}
+                        disabled={resetStatus === 'loading'}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        {resetStatus === 'loading' ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Resetting...
+                          </>
+                        ) : (
+                          'Yes, Reset Everything'
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => setShowResetConfirm(false)}
+                        disabled={resetStatus === 'loading'}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setShowResetConfirm(true)}
+                    variant="outline"
+                    className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset My Progress
+                  </Button>
+                )}
+              </div>
             </section>
           )}
 

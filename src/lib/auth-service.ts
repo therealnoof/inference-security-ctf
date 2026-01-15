@@ -511,8 +511,9 @@ export async function getLeaderboard(
   }
 ): Promise<User[]> {
   const users = await getUsers(kv);
+  // Show all active users with scores (including admins who play)
   let leaderboard = users
-    .filter(u => u.status === 'active' && u.role === 'player')
+    .filter(u => u.status === 'active' && u.totalScore > 0)
     .sort((a, b) => b.totalScore - a.totalScore);
 
   const limit = options?.limit || 100;

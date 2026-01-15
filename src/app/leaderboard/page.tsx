@@ -213,14 +213,13 @@ export default function LeaderboardPage() {
       const response = await fetch('/api/leaderboard?limit=50');
       if (!response.ok) throw new Error('Failed to fetch leaderboard');
       const data = await response.json();
-      // Map API response to User format
-      const mappedUsers: User[] = data.leaderboard.map((entry: any) => ({
-        id: entry.id,
+      // Map API response to User format (API returns array directly)
+      const mappedUsers: User[] = data.map((entry: any) => ({
+        id: entry.visibleId || entry.id,
         displayName: entry.displayName,
-        totalScore: entry.score,
+        totalScore: entry.totalScore,
         levelsCompleted: entry.levelsCompleted,
         bestTime: entry.bestTime,
-        avatarUrl: entry.avatarUrl,
         email: '',
         role: 'player' as const,
         status: 'active' as const,
