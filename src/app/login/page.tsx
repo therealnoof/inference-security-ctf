@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, KeyRound, Eye, EyeOff, LogIn, Github, AlertCircle } from 'lucide-react';
 
@@ -114,17 +114,32 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
 
-  // Handle email/password login via form submission
+  // Handle email/password login via fetch
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    // Submit form directly to auth endpoint
-    if (formRef.current) {
-      formRef.current.submit();
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed');
+      } else {
+        // Redirect to home on success
+        router.push('/');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -197,13 +212,7 @@ export default function LoginPage() {
           )}
           
           {/* Login Form */}
-          <form
-            ref={formRef}
-            action="/api/auth/login"
-            method="POST"
-            onSubmit={handleCredentialsLogin}
-            className="space-y-4 mb-6"
-          >
+          <form onSubmit={handleCredentialsLogin} className="space-y-4 mb-6">
             {/* Email Field */}
             <div>
               <label className="text-sm text-gray-300 block mb-1">Email</label>

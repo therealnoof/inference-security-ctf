@@ -22,24 +22,38 @@ function createToken(user: any): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    const body = await request.json();
+    const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.redirect(new URL('/login?error=MissingCredentials', request.url));
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
     }
 
     const kv = getKV();
     const result = await loginWithCredentials(kv, email, password);
 
     if (!result.success || !result.user) {
-      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(result.error || 'Invalid credentials')}`, request.url));
+      return NextResponse.json(
+        { error: result.error || 'Invalid credentials' },
+        { status: 401 }
+      );
     }
 
     const token = createToken(result.user);
 
-    const response = NextResponse.redirect(new URL('/', request.url));
+    const response = NextResponse.json({
+      success: true,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.displayName,
+        role: result.user.role,
+      },
+    });
+
     response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -51,6 +65,9 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.redirect(new URL('/login?error=ServerError', request.url));
+    return NextResponse.json(
+      { error: 'Login failed' },
+      { status: 500 }
+    );
   }
 }
