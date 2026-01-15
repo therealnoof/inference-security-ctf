@@ -40,6 +40,7 @@ export interface User {
   // Stats (denormalized for quick access)
   totalScore: number;
   levelsCompleted: number;
+  completedLevelIds?: number[]; // Track which specific levels were completed
   totalAttempts: number;
   bestTime?: number; // seconds
   

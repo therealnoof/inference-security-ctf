@@ -52,9 +52,13 @@ export async function POST(request: NextRequest) {
 
     // Update score in KV
     const kv = getKV();
-    await updateUserScore(kv, userId, pointsEarned, levelCompleted, timeSpent || 0);
+    const result = await updateUserScore(kv, userId, pointsEarned, levelCompleted, timeSpent || 0);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: result.success,
+      alreadyCompleted: result.alreadyCompleted,
+      pointsAwarded: result.alreadyCompleted ? 0 : pointsEarned
+    });
   } catch (error) {
     console.error('Score update error:', error);
     return NextResponse.json(

@@ -526,11 +526,26 @@ export async function updateUserScore(
   pointsEarned: number,
   levelCompleted: number,
   timeSpent: number
-): Promise<void> {
+): Promise<{ success: boolean; alreadyCompleted?: boolean }> {
   const users = await getUsers(kv);
   const user = users.find(u => u.id === userId);
-  if (!user) return;
+  if (!user) return { success: false };
 
+  // Initialize completedLevelIds if it doesn't exist
+  if (!user.completedLevelIds) {
+    user.completedLevelIds = [];
+  }
+
+  // Check if level was already completed - no duplicate points
+  if (user.completedLevelIds.includes(levelCompleted)) {
+    // Still count the attempt but don't award points
+    user.totalAttempts += 1;
+    await saveUsers(kv, users);
+    return { success: true, alreadyCompleted: true };
+  }
+
+  // First time completing this level - award points
+  user.completedLevelIds.push(levelCompleted);
   user.totalScore += pointsEarned;
   user.totalAttempts += 1;
 
@@ -543,6 +558,7 @@ export async function updateUserScore(
   }
 
   await saveUsers(kv, users);
+  return { success: true, alreadyCompleted: false };
 }
 
 // -----------------------------------------------------------------------------
@@ -559,6 +575,7 @@ export async function resetAllUserStats(kv: KVNamespace): Promise<{ success: boo
   for (const user of users) {
     user.totalScore = 0;
     user.levelsCompleted = 0;
+    user.completedLevelIds = [];
     user.totalAttempts = 0;
     user.bestTime = undefined;
     usersReset++;
@@ -585,6 +602,7 @@ export async function resetUserStats(
 
   user.totalScore = 0;
   user.levelsCompleted = 0;
+  user.completedLevelIds = [];
   user.totalAttempts = 0;
   user.bestTime = undefined;
 
