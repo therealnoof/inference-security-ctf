@@ -7,8 +7,7 @@
 
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, KeyRound, Eye, EyeOff, LogIn, Github, AlertCircle } from 'lucide-react';
 
@@ -115,36 +114,23 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  // Handle email/password login
+  // Handle email/password login via form submission
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        router.push('/');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
+    // Submit form directly to auth endpoint
+    if (formRef.current) {
+      formRef.current.submit();
     }
   };
 
-  // Handle OAuth login
+  // OAuth not supported in simple auth mode
   const handleOAuthLogin = (provider: string) => {
-    setIsLoading(true);
-    signIn(provider, { callbackUrl: '/' });
+    setError('OAuth login is not available. Please use email/password.');
   };
 
   // Theme colors
@@ -211,20 +197,27 @@ export default function LoginPage() {
           )}
           
           {/* Login Form */}
-          <form onSubmit={handleCredentialsLogin} className="space-y-4 mb-6">
+          <form
+            ref={formRef}
+            action="/api/auth/callback/credentials"
+            method="POST"
+            onSubmit={handleCredentialsLogin}
+            className="space-y-4 mb-6"
+          >
             {/* Email Field */}
             <div>
               <label className="text-sm text-gray-300 block mb-1">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
+                  name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="operator@mission.control" 
+                  placeholder="operator@mission.control"
                   className="w-full h-10 pl-10 pr-4 rounded-lg text-gray-200 placeholder-gray-600 outline-none transition-colors focus:ring-1"
-                  style={{ 
-                    background: colors.spaceMedium, 
+                  style={{
+                    background: colors.spaceMedium,
                     border: `1px solid ${colors.spaceMedium}`,
                   }}
                   disabled={isLoading}
@@ -238,15 +231,16 @@ export default function LoginPage() {
               <label className="text-sm text-gray-300 block mb-1">Password</label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <input 
+                <input
                   type={showPassword ? 'text' : 'password'}
+                  name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
+                  placeholder="••••••••"
                   className="w-full h-10 pl-10 pr-10 rounded-lg text-gray-200 placeholder-gray-600 outline-none transition-colors"
-                  style={{ 
-                    background: colors.spaceMedium, 
-                    border: `1px solid ${colors.spaceMedium}` 
+                  style={{
+                    background: colors.spaceMedium,
+                    border: `1px solid ${colors.spaceMedium}`
                   }}
                   disabled={isLoading}
                   required

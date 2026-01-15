@@ -3,14 +3,14 @@
 // =============================================================================
 // This component wraps the application with all necessary React context providers.
 // Includes:
-// - NextAuth SessionProvider for authentication
+// - Custom AuthProvider for authentication (Edge Runtime compatible)
 // - Theme provider for dark/light mode
 // =============================================================================
 
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { SessionProvider } from "next-auth/react";
+import { AuthProvider } from "@/lib/auth-context";
 import { useCTFStore } from "@/lib/store";
 
 /**
@@ -54,8 +54,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SessionProvider>
+    <AuthProvider>
       {children}
-    </SessionProvider>
+    </AuthProvider>
   );
 }

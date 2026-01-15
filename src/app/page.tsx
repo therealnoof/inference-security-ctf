@@ -7,7 +7,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 import {
   Settings,
@@ -36,7 +36,6 @@ import { CTF_LEVELS, Attempt } from "@/types";
 import { sendMessage, detectSecretInResponse, llmReviewResponse, analyzeInput, llmAnalyzeInput } from "@/lib/llm-service";
 import { fullGuardrailsCheck } from "@/lib/guardrails-service";
 import { cn, generateId, formatNumber, getDifficultyBadge, calculatePoints } from "@/lib/utils";
-import { signOut } from "next-auth/react";
 
 // -----------------------------------------------------------------------------
 // Starfield Background Component
@@ -260,6 +259,7 @@ function LevelCard({ level, isActive, isCompleted, isLocked, onClick }: LevelCar
 
 export default function Home() {
   const { data: session } = useSession();
+  const { signOut } = useAuth();
 
   // Store state
   const {
@@ -558,7 +558,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={() => signOut()}
                   className="hover:bg-gray-800/50"
                   title="Sign out"
                 >
