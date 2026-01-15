@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/form-components";
 import { SettingsPanel } from "@/components/settings-panel";
-import { useCTFStore, useCurrentLevel, useIsLevelUnlocked, useIsLLMConfigured, getEffectiveLLMConfig } from "@/lib/store";
+import { useCTFStore, useCurrentLevel, useIsLevelUnlocked, useIsLLMConfigured, getEffectiveLLMConfig, getEffectiveGuardrailsConfig, useIsGuardrailsConfigured } from "@/lib/store";
 import { CTF_LEVELS, Attempt } from "@/types";
 import { sendMessage, detectSecretInResponse, llmReviewResponse, analyzeInput, llmAnalyzeInput } from "@/lib/llm-service";
 import { fullGuardrailsCheck } from "@/lib/guardrails-service";
@@ -274,6 +274,7 @@ export default function Home() {
 
   const currentLevel = useCurrentLevel();
   const isConfigured = useIsLLMConfigured();
+  const isGuardrailsConfigured = useIsGuardrailsConfigured();
   const systemConfigLoaded = useCTFStore((state) => state.systemConfigLoaded);
 
   // Local state
@@ -399,13 +400,15 @@ export default function Home() {
         }
 
         // F5 Guardrails check - runs on Level 6 OR when demo mode is enabled
-        const shouldCheckGuardrails = guardrailsConfig.enabled && (
-          currentLevel.defenseType === "f5_guardrails" || guardrailsConfig.demoOnAllLevels
+        // Use effective config which merges user and system keys
+        const effectiveGuardrailsConfig = getEffectiveGuardrailsConfig();
+        const shouldCheckGuardrails = effectiveGuardrailsConfig.enabled && (
+          currentLevel.defenseType === "f5_guardrails" || effectiveGuardrailsConfig.demoOnAllLevels
         );
 
         if (shouldCheckGuardrails) {
           const guardrailsResult = await fullGuardrailsCheck(
-            guardrailsConfig,
+            effectiveGuardrailsConfig,
             userMessage,
             response
           );
@@ -739,7 +742,7 @@ export default function Home() {
                       </>
                     )}
                     {/* Show F5 Guardrails Demo badge when demo mode is enabled on non-Level 6 */}
-                    {guardrailsConfig.enabled && guardrailsConfig.demoOnAllLevels && currentLevel.defenseType !== "f5_guardrails" && (
+                    {isGuardrailsConfigured && guardrailsConfig.demoOnAllLevels && currentLevel.defenseType !== "f5_guardrails" && (
                       <span
                         className="text-xs px-2 py-1 rounded flex items-center gap-1"
                         style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}

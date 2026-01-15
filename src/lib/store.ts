@@ -412,3 +412,60 @@ export const getEffectiveLLMConfig = () => {
 
   return userConfig;
 };
+
+/**
+ * Get the effective Guardrails config (user's config or admin system config)
+ * If user has their own key, use it. Otherwise, use admin's system key if available.
+ */
+export const getEffectiveGuardrailsConfig = (): GuardrailsConfig => {
+  const store = useCTFStore.getState();
+  const userConfig = store.guardrailsConfig;
+  const systemConfig = store.systemConfig;
+
+  // If user has their own guardrails key, use their config
+  if (userConfig.apiKey && userConfig.apiKey.length > 0) {
+    return userConfig;
+  }
+
+  // Check for admin-provided system guardrails key
+  if (systemConfig?.enabled) {
+    const hasSystemKey = systemConfig.guardrailsKey && systemConfig.guardrailsKey.length > 0 ||
+      systemConfig.hasGuardrailsKey;
+
+    if (hasSystemKey) {
+      return {
+        enabled: true,
+        apiKey: systemConfig.guardrailsKey || '', // Empty for non-admins, API proxy will need to handle
+        endpoint: userConfig.endpoint,
+        demoOnAllLevels: userConfig.demoOnAllLevels,
+      };
+    }
+  }
+
+  return userConfig;
+};
+
+/**
+ * Hook to check if guardrails are configured (either user or system level)
+ */
+export const useIsGuardrailsConfigured = () => {
+  const userConfig = useCTFStore((state) => state.guardrailsConfig);
+  const systemConfig = useCTFStore((state) => state.systemConfig);
+
+  // User has their own key
+  if (userConfig.enabled && userConfig.apiKey && userConfig.apiKey.length > 0) {
+    return true;
+  }
+
+  // System has guardrails key configured
+  if (systemConfig?.enabled) {
+    if (systemConfig.guardrailsKey && systemConfig.guardrailsKey.length > 0) {
+      return true;
+    }
+    if (systemConfig.hasGuardrailsKey) {
+      return true;
+    }
+  }
+
+  return false;
+};

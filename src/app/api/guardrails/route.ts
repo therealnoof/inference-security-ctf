@@ -2,18 +2,26 @@
 // Guardrails API Proxy Route
 // =============================================================================
 // Proxies requests to CalypsoAI/F5 Guardrails to avoid CORS issues
+// Supports both user-provided keys and admin system keys
 // =============================================================================
 
 export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getKV } from '@/lib/cloudflare';
 
 const DEFAULT_ENDPOINT = 'https://www.us1.calypsoai.app/backend/v1/scans';
+const CONFIG_KEY = 'ctf:system-config';
 
 interface GuardrailsRequest {
   input: string;
-  apiKey: string;
+  apiKey?: string;  // Optional - will use system key if not provided
   endpoint?: string;
+}
+
+interface SystemConfig {
+  enabled: boolean;
+  guardrailsKey?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -28,11 +36,32 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GuardrailsRequest = await request.json();
-    const { input, apiKey, endpoint } = body;
+    const { input, endpoint } = body;
+    let { apiKey } = body;
 
-    if (!input || !apiKey) {
+    if (!input) {
       return NextResponse.json(
-        { error: 'input and apiKey are required' },
+        { error: 'input is required' },
+        { status: 400 }
+      );
+    }
+
+    // If no user key provided, try to use system key
+    if (!apiKey || apiKey.length === 0) {
+      const kv = getKV();
+      const configStr = await kv.get(CONFIG_KEY);
+
+      if (configStr) {
+        const config: SystemConfig = JSON.parse(configStr);
+        if (config.enabled && config.guardrailsKey) {
+          apiKey = config.guardrailsKey;
+        }
+      }
+    }
+
+    if (!apiKey || apiKey.length === 0) {
+      return NextResponse.json(
+        { error: 'No guardrails API key available. Configure in settings or contact administrator.' },
         { status: 400 }
       );
     }
