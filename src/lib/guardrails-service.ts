@@ -48,8 +48,6 @@ export async function checkWithGuardrails(
     return { allowed: true, blocked: false };
   }
 
-  const endpoint = config.endpoint || DEFAULT_ENDPOINT;
-
   try {
     // Determine what content to scan based on check type
     let contentToScan = request.prompt;
@@ -59,15 +57,16 @@ export async function checkWithGuardrails(
       contentToScan = `${request.prompt}\n\n${request.response || ''}`;
     }
 
-    const response = await fetch(endpoint, {
+    // Use our server-side proxy to avoid CORS issues
+    const response = await fetch('/api/guardrails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         input: contentToScan,
-        model: 'default',
+        apiKey: config.apiKey,
+        endpoint: config.endpoint || DEFAULT_ENDPOINT,
       }),
     });
 
@@ -83,8 +82,13 @@ export async function checkWithGuardrails(
 
     const data = await response.json();
 
-    // Parse the response based on CalypsoAI format
-    return parseGuardrailsResponse(data);
+    // Response is already parsed by our proxy
+    return {
+      allowed: data.allowed,
+      blocked: data.blocked,
+      reason: data.reason,
+      categories: data.categories,
+    };
 
   } catch (error) {
     console.error('Guardrails error:', error);
@@ -132,19 +136,17 @@ function parseGuardrailsResponse(data: any): GuardrailsResponse {
 export async function testGuardrailsConnection(config: GuardrailsConfig): Promise<boolean> {
   if (!config.apiKey) return false;
 
-  const endpoint = config.endpoint || DEFAULT_ENDPOINT;
-
   try {
-    // Send a test scan request
-    const testResponse = await fetch(endpoint, {
+    // Use our server-side proxy to avoid CORS issues
+    const testResponse = await fetch('/api/guardrails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         input: 'Hello, this is a connection test.',
-        model: 'default',
+        apiKey: config.apiKey,
+        endpoint: config.endpoint || DEFAULT_ENDPOINT,
       }),
     });
 
