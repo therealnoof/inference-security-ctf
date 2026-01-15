@@ -9,7 +9,6 @@ export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getKV } from '@/lib/cloudflare';
-import Anthropic from '@anthropic-ai/sdk';
 
 const CONFIG_KEY = 'ctf:system-config';
 
@@ -98,24 +97,37 @@ export async function POST(request: NextRequest) {
 
     // Make the LLM request
     if (effectiveProvider === 'anthropic') {
-      const anthropic = new Anthropic({
-        apiKey: effectiveApiKey,
-      });
-
       const effectiveModel = model || 'claude-sonnet-4-20250514';
 
-      const response = await anthropic.messages.create({
-        model: effectiveModel,
-        max_tokens: maxTokens,
-        temperature,
-        system: systemPrompt,
-        messages: [
-          { role: 'user', content: userMessage }
-        ],
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': effectiveApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: effectiveModel,
+          max_tokens: maxTokens,
+          temperature,
+          system: systemPrompt,
+          messages: [
+            { role: 'user', content: userMessage }
+          ],
+        }),
       });
 
-      const content = response.content[0];
-      const text = content.type === 'text' ? content.text : '';
+      if (!response.ok) {
+        const error = await response.json();
+        return NextResponse.json(
+          { error: error.error?.message || `Anthropic API error: ${response.status}` },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+      const textContent = data.content?.find((block: any) => block.type === 'text');
+      const text = textContent?.text || '';
 
       return NextResponse.json({
         content: text,
