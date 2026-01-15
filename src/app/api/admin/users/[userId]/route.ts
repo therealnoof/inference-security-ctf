@@ -22,23 +22,47 @@ import {
 import { getKV } from "@/lib/cloudflare";
 import { hasPermission, canManageRole, UserRole } from "@/types/auth";
 
-// TODO: Implement proper Edge-compatible session checking
+// Check admin permission using cookie-based auth
 async function checkAdminPermission(request: NextRequest, requiredPermission: string) {
-  const adminToken = request.headers.get('x-admin-token');
-  const expectedToken = process.env.ADMIN_API_TOKEN;
+  const token = request.cookies.get('auth-token')?.value;
 
-  if (!expectedToken || adminToken !== expectedToken) {
+  if (!token) {
     return {
       authorized: false,
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     };
   }
 
-  return {
-    authorized: true,
-    adminId: 'admin-1',
-    adminRole: 'superadmin' as UserRole
-  };
+  try {
+    const payload = JSON.parse(atob(token));
+
+    // Check if token is expired
+    if (payload.exp < Date.now()) {
+      return {
+        authorized: false,
+        error: NextResponse.json({ error: "Token expired" }, { status: 401 })
+      };
+    }
+
+    // Check if user is admin or superadmin
+    if (payload.role !== 'admin' && payload.role !== 'superadmin') {
+      return {
+        authorized: false,
+        error: NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
+      };
+    }
+
+    return {
+      authorized: true,
+      adminId: payload.id,
+      adminRole: payload.role as UserRole
+    };
+  } catch {
+    return {
+      authorized: false,
+      error: NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    };
+  }
 }
 
 // -----------------------------------------------------------------------------
