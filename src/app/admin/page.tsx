@@ -746,7 +746,37 @@ export default function AdminDashboard() {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Export users as CSV
+                const headers = ['ID', 'Display Name', 'Email', 'Role', 'Status', 'Score', 'Levels Completed', 'Created At'];
+                const csvRows = [headers.join(',')];
+
+                users.forEach(user => {
+                  const row = [
+                    user.id,
+                    `"${user.displayName}"`,
+                    user.email,
+                    user.role,
+                    user.status,
+                    user.totalScore,
+                    user.levelsCompleted,
+                    user.createdAt ? new Date(user.createdAt).toISOString() : ''
+                  ];
+                  csvRows.push(row.join(','));
+                });
+
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ctf-users-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
