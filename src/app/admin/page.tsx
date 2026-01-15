@@ -158,7 +158,7 @@ function UserRow({ user, onAction, currentUserRole }: UserRowProps) {
       {/* Last Active */}
       <td className="px-4 py-3 text-right">
         <span className="text-sm text-gray-500">
-          {user.lastLoginAt ? formatRelativeTime(new Date(user.lastLoginAt)) : 'Never'}
+          {user.lastActiveAt ? formatRelativeTime(new Date(user.lastActiveAt)) : user.lastLoginAt ? formatRelativeTime(new Date(user.lastLoginAt)) : 'Never'}
         </span>
       </td>
       

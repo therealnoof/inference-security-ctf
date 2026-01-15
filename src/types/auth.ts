@@ -47,6 +47,7 @@ export interface User {
   // Timestamps
   createdAt: Date;
   lastLoginAt?: Date;
+  lastActiveAt?: Date;  // Updated on user activity (chat, score submission)
   suspendedAt?: Date;
   suspendedReason?: string;
   suspendedBy?: string; // Admin user ID

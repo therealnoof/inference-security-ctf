@@ -9,6 +9,7 @@ export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getKV } from '@/lib/cloudflare';
+import { updateUserActivity } from '@/lib/auth-service';
 
 const CONFIG_KEY = 'ctf:system-config';
 
@@ -42,7 +43,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify token is valid
+    // Verify token is valid and extract userId
+    let userId: string | undefined;
     try {
       const payload = JSON.parse(atob(token));
       if (payload.exp < Date.now()) {
@@ -51,11 +53,18 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
+      userId = payload.userId;
     } catch {
       return NextResponse.json(
         { error: 'Invalid token' },
         { status: 401 }
       );
+    }
+
+    // Update user activity timestamp
+    if (userId) {
+      const kv = getKV();
+      updateUserActivity(kv, userId).catch(console.error);
     }
 
     const body: ChatRequest = await request.json();

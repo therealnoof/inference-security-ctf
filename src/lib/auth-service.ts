@@ -108,6 +108,7 @@ async function getUsers(kv: KVNamespace): Promise<User[]> {
       ...u,
       createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
       lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt) : undefined,
+      lastActiveAt: u.lastActiveAt ? new Date(u.lastActiveAt) : undefined,
       suspendedAt: u.suspendedAt ? new Date(u.suspendedAt) : undefined,
     }));
   } catch (error) {
@@ -609,4 +610,25 @@ export async function resetUserStats(
   await saveUsers(kv, users);
 
   return { success: true };
+}
+
+// -----------------------------------------------------------------------------
+// Activity Tracking
+// -----------------------------------------------------------------------------
+
+/**
+ * Update user's last active timestamp
+ * Called on user activity (chat messages, score submissions)
+ */
+export async function updateUserActivity(
+  kv: KVNamespace,
+  userId: string
+): Promise<void> {
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
+
+  if (user) {
+    user.lastActiveAt = new Date();
+    await saveUsers(kv, users);
+  }
 }

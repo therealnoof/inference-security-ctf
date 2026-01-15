@@ -7,7 +7,7 @@
 export const runtime = 'edge';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { updateUserScore } from '@/lib/auth-service';
+import { updateUserScore, updateUserActivity } from '@/lib/auth-service';
 import { getKV } from '@/lib/cloudflare';
 
 export async function POST(request: NextRequest) {
@@ -50,9 +50,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update score in KV
+    // Update score and activity in KV
     const kv = getKV();
     const result = await updateUserScore(kv, userId, pointsEarned, levelCompleted, timeSpent || 0);
+
+    // Update user activity timestamp
+    updateUserActivity(kv, userId).catch(console.error);
 
     return NextResponse.json({
       success: result.success,
