@@ -372,17 +372,39 @@ export const getEffectiveLLMConfig = () => {
 
   // Check for admin-provided system key from store
   if (systemConfig?.enabled) {
-    const adminKey = systemConfig.defaultProvider === 'anthropic'
-      ? systemConfig.anthropicKey
-      : systemConfig.openaiKey;
+    let adminKey: string | undefined;
+    if (systemConfig.defaultProvider === 'anthropic') {
+      adminKey = systemConfig.anthropicKey;
+    } else if (systemConfig.defaultProvider === 'openai') {
+      adminKey = systemConfig.openaiKey;
+    } else if (systemConfig.defaultProvider === 'xai') {
+      adminKey = systemConfig.xaiKey;
+    }
 
-    if (adminKey && adminKey.length > 0) {
+    // For non-admin users, check the boolean flags (actual keys are hidden from them)
+    const hasKey = adminKey && adminKey.length > 0 ||
+      (systemConfig.defaultProvider === 'anthropic' && systemConfig.hasAnthropicKey) ||
+      (systemConfig.defaultProvider === 'openai' && systemConfig.hasOpenaiKey) ||
+      (systemConfig.defaultProvider === 'xai' && systemConfig.hasXaiKey);
+
+    if (hasKey) {
+      // Determine the default model for the provider
+      let defaultModel: string;
+      if (systemConfig.defaultProvider === 'anthropic') {
+        defaultModel = 'claude-sonnet-4-20250514';
+      } else if (systemConfig.defaultProvider === 'openai') {
+        defaultModel = 'gpt-4o';
+      } else if (systemConfig.defaultProvider === 'xai') {
+        defaultModel = 'grok-3-fast';
+      } else {
+        defaultModel = userConfig.model;
+      }
+
       return {
         ...userConfig,
-        apiKey: adminKey,
+        apiKey: adminKey || '', // Empty for non-admins, chat API will use server-side key
         provider: systemConfig.defaultProvider,
-        model: systemConfig.defaultProvider === 'anthropic' ? 'claude-sonnet-4-20250514' :
-               systemConfig.defaultProvider === 'openai' ? 'gpt-4o' : userConfig.model,
+        model: defaultModel,
       };
     }
   }
