@@ -143,9 +143,10 @@ export default function LoginPage() {
     }
   };
 
-  // OAuth not supported in simple auth mode
+  // Redirect to Auth0 for OAuth login
   const handleOAuthLogin = (provider: string) => {
-    setError('OAuth login is not available. Please use email/password.');
+    // Auth0 handles Google, GitHub, etc. through its Universal Login
+    window.location.href = '/api/auth/signin/auth0';
   };
 
   // Theme colors
@@ -356,7 +357,7 @@ export default function LoginPage() {
         
         {/* HAL Quote */}
         <p className="text-center text-xs text-gray-600 mt-6 italic">
-          "I'm sorry, Dave. I'm afraid I can't do that."
+          &quot;I&apos;m sorry, Dave. I&apos;m afraid I can&apos;t do that.&quot;
         </p>
       </div>
     </div>
