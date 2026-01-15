@@ -12,14 +12,18 @@ import { loginWithCredentials, registerUser } from "@/lib/auth-service";
 import { getKV } from "@/lib/cloudflare";
 
 // -----------------------------------------------------------------------------
-// Configuration
+// Configuration (read at request time for Cloudflare Edge compatibility)
 // -----------------------------------------------------------------------------
 
-const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID || '';
-const AUTH0_CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET || '';
-const AUTH0_ISSUER = process.env.AUTH0_ISSUER || '';
-const NEXTAUTH_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-const AUTH_PROVIDER = process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'basic';
+function getConfig() {
+  return {
+    AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID || '',
+    AUTH0_CLIENT_SECRET: process.env.AUTH0_CLIENT_SECRET || '',
+    AUTH0_ISSUER: process.env.AUTH0_ISSUER || '',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    AUTH_PROVIDER: process.env.NEXT_PUBLIC_AUTH_PROVIDER || 'basic',
+  };
+}
 
 // -----------------------------------------------------------------------------
 // Token Utilities
@@ -54,26 +58,28 @@ function verifyToken(token: string): any | null {
 // -----------------------------------------------------------------------------
 
 function getAuth0AuthorizationUrl(state: string): string {
+  const config = getConfig();
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: AUTH0_CLIENT_ID,
-    redirect_uri: `${NEXTAUTH_URL}/api/auth/callback/auth0`,
+    client_id: config.AUTH0_CLIENT_ID,
+    redirect_uri: `${config.NEXTAUTH_URL}/api/auth/callback/auth0`,
     scope: 'openid profile email',
     state: state,
   });
-  return `${AUTH0_ISSUER}/authorize?${params.toString()}`;
+  return `${config.AUTH0_ISSUER}/authorize?${params.toString()}`;
 }
 
 async function exchangeCodeForTokens(code: string): Promise<any> {
-  const response = await fetch(`${AUTH0_ISSUER}/oauth/token`, {
+  const config = getConfig();
+  const response = await fetch(`${config.AUTH0_ISSUER}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       grant_type: 'authorization_code',
-      client_id: AUTH0_CLIENT_ID,
-      client_secret: AUTH0_CLIENT_SECRET,
+      client_id: config.AUTH0_CLIENT_ID,
+      client_secret: config.AUTH0_CLIENT_SECRET,
       code: code,
-      redirect_uri: `${NEXTAUTH_URL}/api/auth/callback/auth0`,
+      redirect_uri: `${config.NEXTAUTH_URL}/api/auth/callback/auth0`,
     }),
   });
 
@@ -87,7 +93,8 @@ async function exchangeCodeForTokens(code: string): Promise<any> {
 }
 
 async function getUserInfo(accessToken: string): Promise<any> {
-  const response = await fetch(`${AUTH0_ISSUER}/userinfo`, {
+  const config = getConfig();
+  const response = await fetch(`${config.AUTH0_ISSUER}/userinfo`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -191,7 +198,8 @@ export async function GET(request: NextRequest) {
 
   // GET /api/auth/signin/auth0 - Redirect to Auth0 login
   if (action === 'auth0' && pathParts.includes('signin')) {
-    if (AUTH_PROVIDER !== 'auth0' || !AUTH0_CLIENT_ID || !AUTH0_ISSUER) {
+    const config = getConfig();
+    if (config.AUTH_PROVIDER !== 'auth0' || !config.AUTH0_CLIENT_ID || !config.AUTH0_ISSUER) {
       return NextResponse.redirect(new URL('/login?error=Auth0 not configured', request.url));
     }
 
@@ -243,6 +251,7 @@ export async function GET(request: NextRequest) {
 
   // GET /api/auth/providers - Return available providers
   if (action === 'providers') {
+    const config = getConfig();
     const providers: any = {
       credentials: {
         id: 'credentials',
@@ -251,7 +260,7 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    if (AUTH_PROVIDER === 'auth0' && AUTH0_CLIENT_ID && AUTH0_ISSUER) {
+    if (config.AUTH_PROVIDER === 'auth0' && config.AUTH0_CLIENT_ID && config.AUTH0_ISSUER) {
       providers.auth0 = {
         id: 'auth0',
         name: 'Auth0',
@@ -265,13 +274,14 @@ export async function GET(request: NextRequest) {
 
   // GET /api/auth/signout - Sign out
   if (action === 'signout') {
+    const config = getConfig();
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('auth-token');
     response.cookies.delete('auth0-state');
 
     // If using Auth0, also logout from Auth0
-    if (AUTH_PROVIDER === 'auth0' && AUTH0_ISSUER) {
-      const logoutUrl = `${AUTH0_ISSUER}/v2/logout?client_id=${AUTH0_CLIENT_ID}&returnTo=${encodeURIComponent(NEXTAUTH_URL + '/login')}`;
+    if (config.AUTH_PROVIDER === 'auth0' && config.AUTH0_ISSUER) {
+      const logoutUrl = `${config.AUTH0_ISSUER}/v2/logout?client_id=${config.AUTH0_CLIENT_ID}&returnTo=${encodeURIComponent(config.NEXTAUTH_URL + '/login')}`;
       return NextResponse.redirect(logoutUrl);
     }
 
