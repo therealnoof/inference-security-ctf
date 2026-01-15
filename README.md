@@ -1,4 +1,4 @@
-# 🚀 Inference Security CTF
+# 🚀 Inference Security - Star Gate CTF
 
 A Space Odyssey 2001 themed Capture The Flag (CTF) platform for testing AI prompt injection and jailbreak techniques. Players attempt to extract secret passwords from an AI assistant that has progressively harder security defenses.
 
