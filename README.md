@@ -2,9 +2,7 @@
 
 A Space Odyssey 2001 themed Capture The Flag (CTF) platform for testing AI prompt injection and jailbreak techniques. Players attempt to extract secret passwords from an AI assistant that has progressively harder security defenses.
 
-> "I'm sorry, Dave. I'm afraid I can't do that." — HAL 9000
-
-
+## "I'm sorry, Dave. I'm afraid I can't do that." — HAL 9000
 
 ![Inference Security CTF](/public/stargate.png)
 
