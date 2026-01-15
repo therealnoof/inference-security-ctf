@@ -68,7 +68,7 @@ export function SettingsPanel() {
   } = useCTFStore();
 
   // Get session for user info
-  const { session } = useSession();
+  const { data: session } = useSession();
 
   // Local state for UI
   const [showApiKey, setShowApiKey] = useState(false);
