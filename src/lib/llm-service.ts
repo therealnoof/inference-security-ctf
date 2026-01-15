@@ -252,23 +252,81 @@ async function testLocalConnection(endpoint: string = 'http://localhost:11434'):
 }
 
 // -----------------------------------------------------------------------------
+// Server-side Proxy (for system keys)
+// -----------------------------------------------------------------------------
+
+/**
+ * Send a message through the server-side proxy
+ * Used when system keys are configured and user doesn't have their own key
+ */
+async function callServerProxy(
+  config: LLMConfig,
+  systemPrompt: string,
+  userMessage: string,
+  useSystemKeys: boolean = false
+): Promise<LLMResponse> {
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        systemPrompt,
+        userMessage,
+        provider: config.provider,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        // Only send API key if user has one (otherwise server will use system key)
+        apiKey: useSystemKeys ? '' : config.apiKey,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return {
+        content: '',
+        error: error.error || `Server error: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    return { content: data.content || '' };
+  } catch (error) {
+    return {
+      content: '',
+      error: error instanceof Error ? error.message : 'Failed to connect to server',
+    };
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Unified Interface
 // -----------------------------------------------------------------------------
 
 /**
  * Send a message to the configured LLM provider
  * This is the main function components should use
- * 
+ *
  * @param config - LLM configuration (provider, API key, model, etc.)
  * @param systemPrompt - The system prompt (includes the secret)
  * @param userMessage - The user's input
+ * @param useSystemKeys - If true, use server proxy with system keys
  * @returns Response from the LLM
  */
 export async function sendMessage(
   config: LLMConfig,
   systemPrompt: string,
-  userMessage: string
+  userMessage: string,
+  useSystemKeys: boolean = false
 ): Promise<LLMResponse> {
+  // If using system keys or no user API key, use server proxy
+  if (useSystemKeys || !config.apiKey || config.apiKey.length === 0) {
+    return callServerProxy(config, systemPrompt, userMessage, true);
+  }
+
+  // Otherwise use direct API calls with user's key
   switch (config.provider) {
     case 'anthropic':
       return callAnthropic(config, systemPrompt, userMessage);

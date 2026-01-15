@@ -17,16 +17,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { 
-  X, 
-  Eye, 
-  EyeOff, 
-  Check, 
-  AlertCircle, 
+import {
+  X,
+  Eye,
+  EyeOff,
+  Check,
+  AlertCircle,
   Loader2,
   Settings,
   Shield,
-  Bot
+  Bot,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import { AVAILABLE_MODELS, LLMProvider } from "@/types";
 import { testConnection } from "@/lib/llm-service";
 import { testGuardrailsConnection } from "@/lib/guardrails-service";
 import { cn, maskApiKey } from "@/lib/utils";
+import { useSession } from "@/lib/auth-context";
 
 // -----------------------------------------------------------------------------
 // Settings Panel Component
@@ -65,6 +67,9 @@ export function SettingsPanel() {
     setGuardrailsConnectionStatus,
   } = useCTFStore();
 
+  // Get session for user info
+  const { session } = useSession();
+
   // Local state for UI
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGuardrailsKey, setShowGuardrailsKey] = useState(false);
@@ -72,6 +77,15 @@ export function SettingsPanel() {
   // Check if admin has provided system-wide API keys
   const [adminKeysEnabled, setAdminKeysEnabled] = useState(false);
   const [adminProvider, setAdminProvider] = useState<string>('');
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordChangeStatus, setPasswordChangeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
 
   // Fetch system config from API
   React.useEffect(() => {
@@ -110,6 +124,56 @@ export function SettingsPanel() {
     setGuardrailsConnectionStatus('testing');
     const success = await testGuardrailsConnection(guardrailsConfig);
     setGuardrailsConnectionStatus(success ? 'connected' : 'error');
+  };
+
+  // Handle password change
+  const handlePasswordChange = async () => {
+    setPasswordChangeError('');
+
+    // Validate inputs
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordChangeError('All fields are required');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeError('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordChangeError('New password must be at least 8 characters');
+      return;
+    }
+
+    setPasswordChangeStatus('loading');
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPasswordChangeStatus('error');
+        setPasswordChangeError(data.error || 'Failed to change password');
+        return;
+      }
+
+      setPasswordChangeStatus('success');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      // Reset status after 3 seconds
+      setTimeout(() => setPasswordChangeStatus('idle'), 3000);
+    } catch (error) {
+      setPasswordChangeStatus('error');
+      setPasswordChangeError('Failed to change password');
+    }
   };
 
   // Don't render if panel is closed
@@ -323,6 +387,125 @@ export function SettingsPanel() {
               </>
             )}
           </section>
+
+          {/* Divider */}
+          <div className="border-t" />
+
+          {/* =================================================================
+              Change Password Section
+              ================================================================= */}
+          {session?.user && (
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Key className="h-4 w-4" />
+                <span>Change Password</span>
+              </div>
+
+              {/* Current Password */}
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="currentPassword"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 8 characters
+                </p>
+              </div>
+
+              {/* Confirm New Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              {/* Error Message */}
+              {passwordChangeError && (
+                <div className="flex items-center gap-2 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{passwordChangeError}</span>
+                </div>
+              )}
+
+              {/* Change Password Button */}
+              <Button
+                onClick={handlePasswordChange}
+                disabled={passwordChangeStatus === 'loading'}
+                className="w-full"
+                variant={
+                  passwordChangeStatus === 'success' ? 'success' :
+                  passwordChangeStatus === 'error' ? 'destructive' : 'default'
+                }
+              >
+                {passwordChangeStatus === 'loading' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Changing Password...
+                  </>
+                ) : passwordChangeStatus === 'success' ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Password Changed
+                  </>
+                ) : (
+                  'Change Password'
+                )}
+              </Button>
+            </section>
+          )}
 
           {/* F5 Guardrails Section - only shown when admin keys NOT enabled */}
           {!adminKeysEnabled && (

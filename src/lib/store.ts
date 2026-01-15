@@ -64,6 +64,10 @@ interface CTFStore {
     anthropicKey?: string;
     openaiKey?: string;
     guardrailsKey?: string;
+    // These flags are returned for non-admin users (actual keys are hidden)
+    hasAnthropicKey?: boolean;
+    hasOpenaiKey?: boolean;
+    hasGuardrailsKey?: boolean;
   } | null;
   systemConfigLoaded: boolean;
   setSystemConfig: (config: CTFStore['systemConfig']) => void;
@@ -220,9 +224,14 @@ export const useCTFStore = create<CTFStore>()(
               systemConfig: {
                 enabled: data.enabled || false,
                 defaultProvider: data.defaultProvider || 'anthropic',
+                // Actual keys (only returned to admins)
                 anthropicKey: data.anthropicKey,
                 openaiKey: data.openaiKey,
                 guardrailsKey: data.guardrailsKey,
+                // Boolean flags (returned to non-admin users)
+                hasAnthropicKey: data.hasAnthropicKey,
+                hasOpenaiKey: data.hasOpenaiKey,
+                hasGuardrailsKey: data.hasGuardrailsKey,
               },
               systemConfigLoaded: true,
             });
@@ -318,10 +327,17 @@ export const useIsLLMConfigured = () => {
 
   // Check for admin-provided system key from store
   if (systemConfig?.enabled) {
+    // For admins, check actual keys
     const adminKey = systemConfig.defaultProvider === 'anthropic'
       ? systemConfig.anthropicKey
       : systemConfig.openaiKey;
     if (adminKey && adminKey.length > 0) return true;
+
+    // For non-admins, check the boolean flags (keys are hidden but we know they exist)
+    const hasAdminKey = systemConfig.defaultProvider === 'anthropic'
+      ? systemConfig.hasAnthropicKey
+      : systemConfig.hasOpenaiKey;
+    if (hasAdminKey) return true;
   }
 
   return false;

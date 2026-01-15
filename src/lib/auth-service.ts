@@ -252,6 +252,46 @@ export async function loginWithCredentials(
   };
 }
 
+/**
+ * Change user password
+ */
+export async function changePassword(
+  kv: KVNamespace,
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getUsers(kv);
+  const passwords = await getPasswords(kv);
+
+  const user = users.find(u => u.id === userId);
+
+  if (!user) {
+    return { success: false, error: 'User not found' };
+  }
+
+  // Verify current password
+  const storedPassword = passwords[user.email.toLowerCase()];
+  if (storedPassword !== currentPassword) {
+    return { success: false, error: 'Current password is incorrect' };
+  }
+
+  // Validate new password
+  if (newPassword.length < 8) {
+    return { success: false, error: 'New password must be at least 8 characters' };
+  }
+
+  if (currentPassword === newPassword) {
+    return { success: false, error: 'New password must be different from current password' };
+  }
+
+  // Update password
+  passwords[user.email.toLowerCase()] = newPassword;
+  await savePasswords(kv, passwords);
+
+  return { success: true };
+}
+
 // -----------------------------------------------------------------------------
 // User Management Functions (Admin)
 // -----------------------------------------------------------------------------
