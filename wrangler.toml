@@ -1,7 +1,7 @@
 # Cloudflare Pages Configuration for Next.js
 name = "inference-security-ctf"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat_v2"]
 pages_build_output_dir = ".vercel/output/static"
 
 # KV Namespace for user data storage
