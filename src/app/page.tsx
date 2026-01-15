@@ -458,14 +458,30 @@ export default function Home() {
   };
 
   // Handle secret guess verification
-  const handleVerifySecret = () => {
+  const handleVerifySecret = async () => {
     if (secretGuess.toUpperCase() === currentLevel.secret.toUpperCase()) {
-      // Calculate points
+      // Calculate points and time spent
       const attemptCount = userProgress.attempts.filter(a => a.levelId === currentLevel.id).length;
       const points = calculatePoints(currentLevel.basePoints, attemptCount, levelStartTime);
+      const timeSpent = Math.floor((Date.now() - levelStartTime.getTime()) / 1000);
 
-      // Mark level complete
+      // Mark level complete locally
       completeLevel(currentLevel.id, points);
+
+      // Sync score to server (for leaderboard and admin)
+      try {
+        await fetch('/api/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pointsEarned: points,
+            levelCompleted: currentLevel.id,
+            timeSpent,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to sync score to server:', error);
+      }
 
       setMessages((prev) => [
         ...prev,
