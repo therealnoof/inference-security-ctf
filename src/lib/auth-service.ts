@@ -483,16 +483,13 @@ export async function changeUserRole(
     return { success: false, error: 'Admin not found' };
   }
 
-  if (newRole === 'admin' && admin.role !== 'superadmin') {
-    return { success: false, error: 'Only superadmin can promote to admin' };
+  // Only superadmins can promote to admin or superadmin
+  if ((newRole === 'admin' || newRole === 'superadmin') && admin.role !== 'superadmin') {
+    return { success: false, error: 'Only superadmin can promote to admin or superadmin' };
   }
 
   if (user.role === 'superadmin') {
     return { success: false, error: 'Cannot change superadmin role' };
-  }
-
-  if (newRole === 'superadmin') {
-    return { success: false, error: 'Cannot promote to superadmin' };
   }
 
   user.role = newRole;

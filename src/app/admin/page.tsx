@@ -634,6 +634,7 @@ export default function AdminDashboard() {
   const [modalAction, setModalAction] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [actionReason, setActionReason] = useState("");
+  const [selectedNewRole, setSelectedNewRole] = useState<UserRole>("player");
   
   // Current user (would come from auth context in production)
   const currentUserRole: UserRole = 'superadmin';
@@ -693,6 +694,20 @@ export default function AdminDashboard() {
           method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to delete user');
+      } else if (modalAction === 'changeRole') {
+        // PATCH request for role change
+        const response = await fetch(`/api/admin/users/${selectedUserId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'change_role',
+            newRole: selectedNewRole,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to change role');
+        }
       } else {
         // PATCH request for suspend/unsuspend/ban
         const response = await fetch(`/api/admin/users/${selectedUserId}`, {
@@ -710,10 +725,13 @@ export default function AdminDashboard() {
       loadUsers();
     } catch (error) {
       console.error('Action failed:', error);
+      alert(error instanceof Error ? error.message : 'Action failed');
     }
 
     setModalAction(null);
     setSelectedUserId(null);
+    setActionReason("");
+    setSelectedNewRole("player");
   };
   
   const totalPages = Math.ceil(totalUsers / itemsPerPage);
@@ -847,6 +865,7 @@ export default function AdminDashboard() {
                     <SelectItem value="player">Player</SelectItem>
                     <SelectItem value="moderator">Moderator</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="superadmin">Superadmin</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -982,6 +1001,41 @@ export default function AdminDashboard() {
         onConfirm={executeAction}
         onCancel={() => setModalAction(null)}
       />
+
+      {/* Change Role Modal */}
+      {modalAction === 'changeRole' && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setModalAction(null)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-white mb-2">Change User Role</h3>
+              <p className="text-gray-400 mb-4">Select the new role for this user.</p>
+
+              <div className="mb-4">
+                <Label htmlFor="newRole" className="text-gray-300">New Role</Label>
+                <Select value={selectedNewRole} onValueChange={(v) => setSelectedNewRole(v as UserRole)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="player">Player</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="superadmin">Superadmin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setModalAction(null)}>Cancel</Button>
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={executeAction}>
+                  Change Role
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
