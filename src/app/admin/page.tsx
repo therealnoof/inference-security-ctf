@@ -45,6 +45,7 @@ import {
   Bot,
   ArrowLeft,
   Home,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -635,19 +636,29 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [actionReason, setActionReason] = useState("");
   const [selectedNewRole, setSelectedNewRole] = useState<UserRole>("player");
-  
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
   // Current user (would come from auth context in production)
   const currentUserRole: UserRole = 'superadmin';
   
-  // Stats (would be calculated from real data)
-  const stats: AdminStats = {
-    totalUsers: 156,
-    activeUsers: 142,
-    suspendedUsers: 8,
-    totalAttempts: 2847,
-    successfulAttempts: 423,
-    averageScore: 1850,
-  };
+  // Calculate stats from real user data
+  const stats: AdminStats = React.useMemo(() => {
+    const activeUsers = users.filter(u => u.status === 'active').length;
+    const suspendedUsers = users.filter(u => u.status === 'suspended').length;
+    const totalAttempts = users.reduce((sum, u) => sum + (u.totalAttempts || 0), 0);
+    const totalScore = users.reduce((sum, u) => sum + (u.totalScore || 0), 0);
+    const usersWithScore = users.filter(u => (u.totalScore || 0) > 0).length;
+
+    return {
+      totalUsers,
+      activeUsers,
+      suspendedUsers,
+      totalAttempts,
+      successfulAttempts: users.reduce((sum, u) => sum + (u.levelsCompleted || 0), 0),
+      averageScore: usersWithScore > 0 ? Math.round(totalScore / usersWithScore) : 0,
+    };
+  }, [users, totalUsers]);
   
   // Load users
   useEffect(() => {
@@ -735,6 +746,33 @@ export default function AdminDashboard() {
   };
   
   const totalPages = Math.ceil(totalUsers / itemsPerPage);
+
+  // Reset all stats
+  const handleResetAllStats = async () => {
+    setResetting(true);
+    try {
+      const response = await fetch('/api/admin/reset-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reset stats');
+      }
+
+      const result = await response.json();
+      alert(result.message);
+      loadUsers(); // Refresh the user list
+    } catch (error) {
+      console.error('Reset failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to reset stats');
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -763,6 +801,14 @@ export default function AdminDashboard() {
             <Button variant="outline" onClick={loadUsers}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
+            </Button>
+            <Button
+              variant="outline"
+              className="text-red-400 border-red-400/50 hover:bg-red-500/10"
+              onClick={() => setShowResetConfirm(true)}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Stats
             </Button>
             <Button
               variant="outline"
@@ -1030,6 +1076,58 @@ export default function AdminDashboard() {
                 <Button variant="ghost" onClick={() => setModalAction(null)}>Cancel</Button>
                 <Button className="bg-blue-600 hover:bg-blue-700" onClick={executeAction}>
                   Change Role
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Reset Stats Confirmation Modal */}
+      {showResetConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setShowResetConfirm(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-red-800 rounded-xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-500/20 rounded-lg">
+                  <AlertTriangle className="h-6 w-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Reset All Stats</h3>
+              </div>
+              <p className="text-gray-400 mb-2">
+                This will reset the following for <strong>ALL users</strong>:
+              </p>
+              <ul className="text-gray-400 text-sm mb-4 list-disc list-inside space-y-1">
+                <li>Total scores (set to 0)</li>
+                <li>Levels completed (set to 0)</li>
+                <li>Total attempts (set to 0)</li>
+                <li>Best times (cleared)</li>
+              </ul>
+              <p className="text-red-400 text-sm mb-4">
+                This action cannot be undone!
+              </p>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setShowResetConfirm(false)} disabled={resetting}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={handleResetAllStats}
+                  disabled={resetting}
+                >
+                  {resetting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reset All Stats
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

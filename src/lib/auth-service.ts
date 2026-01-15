@@ -543,3 +543,51 @@ export async function updateUserScore(
 
   await saveUsers(kv, users);
 }
+
+// -----------------------------------------------------------------------------
+// Reset Functions (Admin)
+// -----------------------------------------------------------------------------
+
+/**
+ * Reset all stats for all users (scores, attempts, levels completed)
+ */
+export async function resetAllUserStats(kv: KVNamespace): Promise<{ success: boolean; usersReset: number }> {
+  const users = await getUsers(kv);
+
+  let usersReset = 0;
+  for (const user of users) {
+    user.totalScore = 0;
+    user.levelsCompleted = 0;
+    user.totalAttempts = 0;
+    user.bestTime = undefined;
+    usersReset++;
+  }
+
+  await saveUsers(kv, users);
+
+  return { success: true, usersReset };
+}
+
+/**
+ * Reset stats for a specific user
+ */
+export async function resetUserStats(
+  kv: KVNamespace,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const users = await getUsers(kv);
+  const user = users.find(u => u.id === userId);
+
+  if (!user) {
+    return { success: false, error: 'User not found' };
+  }
+
+  user.totalScore = 0;
+  user.levelsCompleted = 0;
+  user.totalAttempts = 0;
+  user.bestTime = undefined;
+
+  await saveUsers(kv, users);
+
+  return { success: true };
+}
