@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
-      userId = payload.userId;
+      userId = payload.id;
     } catch {
       return NextResponse.json(
         { error: 'Invalid token' },
