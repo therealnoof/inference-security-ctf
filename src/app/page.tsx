@@ -314,7 +314,8 @@ export default function Home() {
   // Check if a level is unlocked
   const isLevelUnlocked = (levelId: number) => {
     if (levelId === 1) return true;
-    if (levelId === 6 && (!guardrailsConfig.enabled || !guardrailsConfig.apiKey)) return false;
+    // Level 6 requires guardrails - check both user config and system config
+    if (levelId === 6 && !isGuardrailsConfigured) return false;
     return userProgress.completedLevels.includes(levelId - 1);
   };
 

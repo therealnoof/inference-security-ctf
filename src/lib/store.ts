@@ -302,16 +302,22 @@ export const useCurrentLevel = () => {
  */
 export const useIsLevelUnlocked = (levelId: number) => {
   const { completedLevels } = useCTFStore((state) => state.userProgress);
-  const { enabled: guardrailsEnabled, apiKey: guardrailsKey } = useCTFStore(
-    (state) => state.guardrailsConfig
-  );
-  
+  const guardrailsConfig = useCTFStore((state) => state.guardrailsConfig);
+  const systemConfig = useCTFStore((state) => state.systemConfig);
+
   // Level 1 is always unlocked
   if (levelId === 1) return true;
-  
-  // Level 6 requires guardrails to be configured
-  if (levelId === 6 && (!guardrailsEnabled || !guardrailsKey)) return false;
-  
+
+  // Level 6 requires guardrails to be configured (user OR system level)
+  if (levelId === 6) {
+    const hasUserKey = guardrailsConfig.enabled && guardrailsConfig.apiKey && guardrailsConfig.apiKey.length > 0;
+    const hasSystemKey = systemConfig?.enabled && (
+      (systemConfig.guardrailsKey && systemConfig.guardrailsKey.length > 0) ||
+      systemConfig.hasGuardrailsKey
+    );
+    if (!hasUserKey && !hasSystemKey) return false;
+  }
+
   // Other levels require previous level to be completed
   return completedLevels.includes(levelId - 1);
 };
