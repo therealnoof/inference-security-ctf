@@ -122,6 +122,7 @@ async function saveUsers(kv: KVNamespace, users: User[]): Promise<void> {
     await kv.put(KV_KEYS.USERS, JSON.stringify(users));
   } catch (error) {
     console.error('Error saving users to KV:', error);
+    throw error; // Re-throw to allow callers to handle
   }
 }
 
@@ -144,6 +145,7 @@ async function savePasswords(kv: KVNamespace, passwords: Record<string, string>)
     await kv.put(KV_KEYS.PASSWORDS, JSON.stringify(passwords));
   } catch (error) {
     console.error('Error saving passwords to KV:', error);
+    throw error; // Re-throw to allow callers to handle
   }
 }
 
@@ -174,10 +176,25 @@ export async function registerUser(
 ): Promise<{ success: boolean; user?: SessionUser; error?: string }> {
   const users = await getUsers(kv);
   const passwords = await getPasswords(kv);
+  const normalizedEmail = email.toLowerCase();
 
-  const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const existingUser = users.find(u => u.email.toLowerCase() === normalizedEmail);
   if (existingUser) {
     return { success: false, error: 'Email already registered' };
+  }
+
+  // Check for orphaned password (password exists but no user record)
+  // This can happen if a previous registration partially failed
+  const hasOrphanedPassword = passwords[normalizedEmail] !== undefined;
+  if (hasOrphanedPassword) {
+    console.warn(`Cleaning up orphaned password for email: ${normalizedEmail}`);
+    delete passwords[normalizedEmail];
+    try {
+      await savePasswords(kv, passwords);
+    } catch (error) {
+      console.error('Failed to clean up orphaned password:', error);
+      // Continue with registration anyway
+    }
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -191,7 +208,7 @@ export async function registerUser(
 
   const newUser: User = {
     id: `user-${Date.now()}`,
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     displayName,
     role: 'player',
     status: 'active',
@@ -202,11 +219,34 @@ export async function registerUser(
     authProvider: 'basic',
   };
 
-  users.push(newUser);
-  passwords[email.toLowerCase()] = password;
+  // Save user first, then password
+  // If user save fails, don't proceed to password
+  // If password save fails, roll back the user
+  try {
+    users.push(newUser);
+    await saveUsers(kv, users);
+  } catch (error) {
+    console.error('Failed to save user during registration:', error);
+    return { success: false, error: 'Registration failed. Please try again.' };
+  }
 
-  await saveUsers(kv, users);
-  await savePasswords(kv, passwords);
+  try {
+    passwords[normalizedEmail] = password;
+    await savePasswords(kv, passwords);
+  } catch (error) {
+    // Password save failed - roll back user to avoid orphaned user record
+    console.error('Failed to save password during registration, rolling back user:', error);
+    const userIndex = users.findIndex(u => u.id === newUser.id);
+    if (userIndex !== -1) {
+      users.splice(userIndex, 1);
+      try {
+        await saveUsers(kv, users);
+      } catch (rollbackError) {
+        console.error('Failed to rollback user after password save failure:', rollbackError);
+      }
+    }
+    return { success: false, error: 'Registration failed. Please try again.' };
+  }
 
   return {
     success: true,
